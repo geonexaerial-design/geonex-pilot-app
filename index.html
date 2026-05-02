@@ -91,6 +91,24 @@
     .cl-badge{font-size:10px;background:var(--blue-bg);color:var(--blue-txt);padding:1px 6px;border-radius:8px;white-space:nowrap;flex-shrink:0;margin-top:2px;}
     .loader{display:inline-block;width:13px;height:13px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;}
     @keyframes spin{to{transform:rotate(360deg);}}
+    /* PLANIFICADOR */
+    #missionMap{width:100%;height:300px;border-radius:10px;border:1.5px solid var(--border);z-index:1;}
+    .tool-btn{font-family:inherit;font-size:12px;padding:7px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;display:flex;align-items:center;gap:5px;transition:all 0.15s;}
+    .tool-btn:hover{background:var(--bg2);}
+    .tool-btn.t-active{background:var(--blue);color:white;border-color:var(--blue);}
+    .tool-btn.t-danger{color:#A32D2D;border-color:#F7C1C1;}
+    .tool-btn.t-danger:hover{background:#FCEBEB;}
+    .mission-hint{font-size:12px;text-align:center;padding:4px 10px;border-radius:8px;margin:6px 0;min-height:28px;display:flex;align-items:center;justify-content:center;}
+    .hint-default{color:var(--text2);}
+    .hint-warn{background:var(--yellow-bg);color:var(--yellow-txt);}
+    .hint-ok{background:var(--green-bg);color:var(--green-txt);}
+    .mission-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0;}
+    .ms{background:var(--bg2);border-radius:10px;padding:10px 8px;text-align:center;}
+    .ms-val{font-size:16px;font-weight:600;color:var(--text);}
+    .ms-lbl{font-size:11px;color:var(--text2);margin-top:2px;}
+    .wp-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;background:var(--bg2);margin-bottom:4px;}
+    .wp-num{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:white;flex-shrink:0;}
+    .wp-del{cursor:pointer;color:#A32D2D;font-size:18px;line-height:1;padding:0 2px;}
     .footer{text-align:center;font-size:11px;color:var(--text2);padding:20px 0 30px;}
   </style>
 </head>
@@ -235,6 +253,58 @@
     </div>
     <div id="blCargando" style="text-align:center;padding:1rem;font-size:13px;color:var(--text2);">Cargando bitácora...</div>
     <div id="blLista"></div>
+  </div>
+
+  <!-- PLANIFICADOR FASE 3 -->
+  <div class="card">
+    <div class="card-title">Planificador de misión</div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <button class="tool-btn t-active" id="mBtnWP" onclick="mSetMode('waypoint')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>Waypoints
+      </button>
+      <button class="tool-btn" id="mBtnPoly" onclick="mSetMode('polygon')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12,2 22,20 2,20"/></svg>Polígono
+      </button>
+      <button class="tool-btn" id="mBtnClose" onclick="mClosePolygon()" style="display:none">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Cerrar área
+      </button>
+      <button class="tool-btn" onclick="mCenterGPS()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Mi ubicación
+      </button>
+      <button class="tool-btn t-danger" onclick="mClearAll()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>Limpiar
+      </button>
+    </div>
+
+    <div id="missionMap"></div>
+    <div class="mission-hint hint-default" id="mHint">Toca el mapa para agregar waypoints</div>
+
+    <div class="mission-stats">
+      <div class="ms"><div class="ms-val" id="mStatPts">0</div><div class="ms-lbl">Puntos</div></div>
+      <div class="ms"><div class="ms-val" id="mStatDist">0m</div><div class="ms-lbl">Distancia</div></div>
+      <div class="ms"><div class="ms-val" id="mStatArea">—</div><div class="ms-lbl">Área</div></div>
+      <div class="ms"><div class="ms-val" id="mStatTime">0min</div><div class="ms-lbl">Tiempo est.</div></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+      <div class="field"><label>Altura (m)</label><input type="number" id="mAlt" value="80" min="30" max="400" oninput="mOnConfig()"/></div>
+      <div class="field"><label>Velocidad (m/s)</label><input type="number" id="mSpeed" value="8" min="2" max="15" oninput="mOnConfig()"/></div>
+      <div class="field"><label>Sobrelapeo lateral (%)</label><input type="number" id="mSide" value="70" min="50" max="90" oninput="mOnConfig()"/></div>
+      <div class="field"><label>Sobrelapeo frontal (%)</label><input type="number" id="mFront" value="80" min="60" max="95" oninput="mOnConfig()"/></div>
+    </div>
+
+    <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">
+      Puntos marcados <span id="mClosedBadge" style="display:none;font-size:11px;background:var(--green-bg);color:var(--green-txt);padding:2px 8px;border-radius:10px;font-weight:400;margin-left:4px;">✓ Área cerrada</span>
+    </div>
+    <div style="max-height:130px;overflow-y:auto;margin-bottom:10px;" id="mWPList">
+      <div style="text-align:center;padding:1rem;font-size:13px;color:var(--text2);border:1px dashed var(--border);border-radius:10px;">Sin puntos. Toca el mapa para comenzar.</div>
+    </div>
+
+    <button class="btn btn-primary" id="mExportBtn" onclick="mExportKML()" disabled style="width:100%;justify-content:center;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar misión KML para DJI
+    </button>
   </div>
 
   <div class="footer">Geonex Aerial © 2026 · Panel de Piloto v1.0</div>
@@ -427,6 +497,163 @@ function blRender(){
   el.innerHTML=vuelos.map(v=>`<div style="background:var(--bg2);border-radius:10px;padding:12px 14px;margin-bottom:10px;"><div style="display:flex;justify-content:space-between;margin-bottom:8px;"><div><div style="font-size:14px;font-weight:600;">${v.drone}</div><div style="font-size:11px;color:var(--text2);">${v.fecha}${v.hora?' · '+v.hora:''}</div></div><span onclick="blEliminar('${v.id}')" style="font-size:11px;color:var(--text2);cursor:pointer;padding:2px 8px;border-radius:4px;border:1px solid var(--border);background:var(--card);">Eliminar</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:${v.notas?'8':'0'}px;"><div style="background:var(--card);border-radius:8px;padding:7px 10px;"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;">Ubicación</div><div style="font-size:13px;font-weight:500;margin-top:2px;">${v.zona||'—'}</div></div><div style="background:var(--card);border-radius:8px;padding:7px 10px;"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;">Duración</div><div style="font-size:13px;font-weight:500;margin-top:2px;">${v.duracion?v.duracion+' min':'—'}</div></div><div style="background:var(--card);border-radius:8px;padding:7px 10px;"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;">Clima</div><div style="font-size:13px;font-weight:500;margin-top:2px;">${v.clima||'—'}</div></div><div style="background:var(--card);border-radius:8px;padding:7px 10px;"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;">Archivos</div><div style="font-size:13px;font-weight:500;margin-top:2px;">${v.archivos||'—'}</div></div></div>${v.notas?`<div style="font-size:12px;color:var(--text2);background:var(--card);border-radius:8px;padding:7px 10px;">${v.notas}</div>`:''}</div>`).join('');
 }
 blLoad();
+
+// ── PLANIFICADOR FASE 3 ────────────────────────────────────
+const mMap = L.map('missionMap').setView([18.772, -102.040], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(mMap);
+
+let mMode='waypoint', mPoints=[], mMarkers=[], mPolyline=null, mPolygon=null, mRoute=null, mClosed=false;
+const CLOSE_PX = 24;
+
+function mWpIcon(n,color){return L.divIcon({html:`<div style="width:24px;height:24px;background:${color};color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.3);">${n}</div>`,className:'',iconAnchor:[12,12]});}
+function mFirstIcon(){return L.divIcon({html:`<div style="width:28px;height:28px;background:#E24B4A;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:3px solid white;box-shadow:0 0 0 2px #E24B4A,0 1px 6px rgba(0,0,0,0.3);">1</div>`,className:'',iconAnchor:[14,14]});}
+
+window.mSetMode=function(m){
+  mMode=m; mClosed=false; mPoints=[];
+  mClearLayers();
+  document.getElementById('mBtnWP').classList.toggle('t-active',m==='waypoint');
+  document.getElementById('mBtnPoly').classList.toggle('t-active',m==='polygon');
+  document.getElementById('mBtnClose').style.display=m==='polygon'?'flex':'none';
+  document.getElementById('mClosedBadge').style.display='none';
+  mUpdateHint(); mRenderList(); mUpdateStats();
+};
+
+mMap.on('click',function(e){
+  if(mMode==='waypoint'){mAddPoint(e.latlng);return;}
+  if(mClosed)return;
+  if(mPoints.length>=3){
+    const fp=mMap.latLngToContainerPoint(mPoints[0]);
+    const cp=mMap.latLngToContainerPoint(e.latlng);
+    const d=Math.sqrt(Math.pow(fp.x-cp.x,2)+Math.pow(fp.y-cp.y,2));
+    if(d<CLOSE_PX){mClosePolygon();return;}
+  }
+  mAddPoint(e.latlng);
+});
+
+function mAddPoint(latlng){
+  mPoints.push(latlng);
+  const color=mMode==='polygon'?'#E24B4A':'#1a1a2e';
+  const icon=mMode==='polygon'&&mPoints.length===1?mFirstIcon():mWpIcon(mPoints.length,color);
+  const mk=L.marker(latlng,{icon}).addTo(mMap);
+  mk.bindPopup(`<b>${mMode==='polygon'?'Vértice':'WP'} ${mPoints.length}</b><br>${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`);
+  mMarkers.push(mk);
+  mRedrawLines(); mUpdateHint(); mRenderList(); mUpdateStats();
+}
+
+window.mClosePolygon=function(){
+  if(mMode!=='polygon'||mPoints.length<3||mClosed)return;
+  mClosed=true;
+  mRedrawLines(); mGenerateGrid();
+  mUpdateHint();
+  document.getElementById('mClosedBadge').style.display='inline';
+  mRenderList(); mUpdateStats();
+};
+
+function mRedrawLines(){
+  if(mPolyline){mPolyline.remove();mPolyline=null;}
+  if(mPolygon){mPolygon.remove();mPolygon=null;}
+  if(mMode==='waypoint'){
+    if(mPoints.length>1) mPolyline=L.polyline(mPoints,{color:'#1a1a2e',weight:2,dashArray:'6,4'}).addTo(mMap);
+  }else{
+    if(mClosed) mPolygon=L.polygon(mPoints,{color:'#E24B4A',fillColor:'#E24B4A',fillOpacity:0.15,weight:2}).addTo(mMap);
+    else if(mPoints.length>1) mPolyline=L.polyline(mPoints,{color:'#E24B4A',weight:2,dashArray:'6,4',opacity:0.6}).addTo(mMap);
+  }
+}
+
+function mGenerateGrid(){
+  if(mRoute){mRoute.remove();mRoute=null;}
+  if(!mClosed||mPoints.length<3)return;
+  const bounds=L.latLngBounds(mPoints);
+  const alt=parseInt(document.getElementById('mAlt').value)||80;
+  const side=parseInt(document.getElementById('mSide').value)||70;
+  const spacing=alt*(1-side/100)*0.7/111320;
+  const lats=[];
+  for(let lat=bounds.getSouth();lat<=bounds.getNorth()+spacing;lat+=spacing)lats.push(lat);
+  const pts=[];
+  lats.forEach((lat,i)=>{
+    const row=[L.latLng(lat,bounds.getWest()),L.latLng(lat,bounds.getEast())];
+    pts.push(...(i%2===0?row:[...row].reverse()));
+  });
+  mRoute=L.polyline(pts,{color:'#185FA5',weight:1.5,opacity:0.7}).addTo(mMap);
+}
+
+window.mOnConfig=function(){if(mClosed)mGenerateGrid();mUpdateStats();};
+
+function mClearLayers(){
+  mMarkers.forEach(m=>m.remove());mMarkers=[];
+  if(mPolyline){mPolyline.remove();mPolyline=null;}
+  if(mPolygon){mPolygon.remove();mPolygon=null;}
+  if(mRoute){mRoute.remove();mRoute=null;}
+}
+
+window.mClearAll=function(){
+  mPoints=[];mClosed=false;mClearLayers();
+  document.getElementById('mClosedBadge').style.display='none';
+  mUpdateHint();mRenderList();mUpdateStats();
+};
+
+window.mCenterGPS=function(){
+  if(!navigator.geolocation)return;
+  navigator.geolocation.getCurrentPosition(pos=>mMap.setView([pos.coords.latitude,pos.coords.longitude],15));
+};
+
+function mUpdateHint(){
+  const h=document.getElementById('mHint');
+  if(mMode==='waypoint'){h.className='mission-hint hint-default';h.textContent='Toca el mapa para agregar waypoints de vuelo';}
+  else if(mClosed){h.className='mission-hint hint-ok';h.textContent='✓ Área cerrada — ajusta config y exporta la misión';}
+  else if(mPoints.length===0){h.className='mission-hint hint-default';h.textContent='Toca el mapa para marcar los vértices del área';}
+  else if(mPoints.length<3){h.className='mission-hint hint-warn';h.textContent=`${mPoints.length} punto${mPoints.length>1?'s':''} — necesitas mínimo 3 para cerrar`;}
+  else{h.className='mission-hint hint-warn';h.textContent='Toca cerca del punto 1 (rojo) para cerrar, o usa "Cerrar área"';}
+}
+
+function mRenderList(){
+  const el=document.getElementById('mWPList');
+  if(mPoints.length===0){el.innerHTML='<div style="text-align:center;padding:1rem;font-size:13px;color:var(--text2);border:1px dashed var(--border);border-radius:10px;">Sin puntos. Toca el mapa para comenzar.</div>';return;}
+  el.innerHTML=mPoints.map((p,i)=>`<div class="wp-item"><div class="wp-num" style="background:${mMode==='polygon'?'#E24B4A':'#1a1a2e'}">${i+1}</div><span style="flex:1;font-size:12px;color:var(--text2);">${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</span>${i===0&&mMode==='polygon'?'<span style="font-size:10px;background:var(--yellow-bg);color:var(--yellow-txt);padding:1px 6px;border-radius:8px;">inicio</span>':''}<span class="wp-del" onclick="mRemovePoint(${i})">×</span></div>`).join('');
+}
+
+window.mRemovePoint=function(i){
+  mPoints.splice(i,1);
+  if(mClosed&&mPoints.length<3){mClosed=false;document.getElementById('mClosedBadge').style.display='none';}
+  mClearLayers();
+  mPoints.forEach((p,idx)=>{
+    const color=mMode==='polygon'?'#E24B4A':'#1a1a2e';
+    const icon=mMode==='polygon'&&idx===0?mFirstIcon():mWpIcon(idx+1,color);
+    const mk=L.marker(p,{icon}).addTo(mMap);mMarkers.push(mk);
+  });
+  mRedrawLines();if(mClosed)mGenerateGrid();
+  mUpdateHint();mRenderList();mUpdateStats();
+};
+
+function mUpdateStats(){
+  document.getElementById('mStatPts').textContent=mPoints.length;
+  let dist=0;
+  for(let i=1;i<mPoints.length;i++)dist+=mPoints[i-1].distanceTo(mPoints[i]);
+  if(mClosed&&mPoints.length>2)dist+=mPoints[mPoints.length-1].distanceTo(mPoints[0]);
+  document.getElementById('mStatDist').textContent=dist>1000?(dist/1000).toFixed(1)+'km':Math.round(dist)+'m';
+  let area=0;
+  if(mClosed&&mPoints.length>=3){
+    for(let i=0;i<mPoints.length;i++){const j=(i+1)%mPoints.length;area+=mPoints[i].lng*mPoints[j].lat;area-=mPoints[j].lng*mPoints[i].lat;}
+    area=Math.abs(area)/2*111320*111320;
+  }
+  document.getElementById('mStatArea').textContent=area>10000?(area/10000).toFixed(2)+'ha':area>0?Math.round(area)+'m²':'—';
+  const speed=parseFloat(document.getElementById('mSpeed').value)||8;
+  const time=dist>0?Math.ceil(dist/speed/60):0;
+  document.getElementById('mStatTime').textContent=time+'min';
+  document.getElementById('mExportBtn').disabled=mMode==='waypoint'?mPoints.length<2:!mClosed;
+}
+
+window.mExportKML=function(){
+  const alt=document.getElementById('mAlt').value;
+  const speed=document.getElementById('mSpeed').value;
+  const placemarks=mPoints.map((p,i)=>`<Placemark><name>${mMode==='polygon'?'V':'WP'}${i+1}</name><Point><coordinates>${p.lng},${p.lat},${alt}</coordinates></Point></Placemark>`).join('');
+  const routeCoords=mPoints.map(p=>`${p.lng},${p.lat},${alt}`).join(' ')+(mClosed?` ${mPoints[0].lng},${mPoints[0].lat},${alt}`:'');
+  const kml=`<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n<name>Geonex Aerial — Misión ${new Date().toLocaleDateString()}</name>\n<description>Velocidad: ${speed} m/s | Altitud: ${alt} m</description>\n<Style id="r"><LineStyle><color>ff1a1a2e</color><width>2</width></LineStyle></Style>\n<Placemark><name>Ruta</name><styleUrl>#r</styleUrl><LineString><altitudeMode>relativeToGround</altitudeMode><coordinates>${routeCoords}</coordinates></LineString></Placemark>\n${placemarks}\n</Document>\n</kml>`;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([kml],{type:'application/vnd.google-earth.kml+xml'}));
+  a.download=`geonex-mision-${new Date().toISOString().split('T')[0]}.kml`;
+  a.click();
+};
 </script>
 </body>
 </html>
