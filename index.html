@@ -98,6 +98,23 @@
     .loader { display: inline-block; width: 13px; height: 13px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* CHECKLIST */
+    .cl-section { margin-bottom: 10px; background: var(--card); border-radius: 10px; border: 1px solid var(--border); overflow: hidden; }
+    .cl-sec-header { padding: 10px 14px; display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+    .cl-sec-title { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }
+    .cl-sec-cnt { font-size: 11px; color: var(--text2); background: var(--bg2); padding: 2px 8px; border-radius: 10px; }
+    .cl-body { border-top: 1px solid var(--border); }
+    .cl-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.1s; }
+    .cl-item:last-child { border-bottom: none; }
+    .cl-item:hover { background: var(--bg2); }
+    .cl-item.extra { background: var(--blue-bg); }
+    .cl-item.extra:hover { background: #d5e8f8; }
+    .cl-check { width: 18px; height: 18px; border-radius: 4px; border: 1.5px solid var(--border); flex-shrink: 0; margin-top: 1px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .cl-check.on { background: var(--blue); border-color: var(--blue); }
+    .cl-txt { font-size: 13px; color: var(--text); line-height: 1.4; flex: 1; }
+    .cl-txt.done { text-decoration: line-through; color: var(--text2); }
+    .cl-badge { font-size: 10px; background: var(--blue-bg); color: var(--blue-txt); padding: 1px 6px; border-radius: 8px; white-space: nowrap; flex-shrink: 0; margin-top: 2px; }
+
     /* FOOTER */
     .footer { text-align: center; font-size: 11px; color: var(--text2); padding: 20px 0 30px; }
   </style>
@@ -191,6 +208,33 @@
     <div class="coords-out" id="coordsOut"></div>
   </div>
 
+  <!-- CHECKLIST -->
+  <div class="card" id="checklistCard">
+    <div class="card-title">Checklist pre-vuelo</div>
+
+    <div class="progress-wrap" id="clProgressWrap" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-size:12px;color:var(--text2);">Progreso</span>
+        <span style="font-size:13px;font-weight:600;color:var(--text);" id="clPct">0%</span>
+      </div>
+      <div style="height:6px;background:var(--bg2);border-radius:3px;overflow:hidden;">
+        <div id="clFill" style="height:100%;border-radius:3px;background:var(--blue);transition:width 0.3s ease;width:0%"></div>
+      </div>
+    </div>
+
+    <div id="clVerdict" style="display:none;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:500;margin-bottom:12px;"></div>
+
+    <div id="clNoDrone" style="text-align:center;padding:1.5rem 1rem;font-size:13px;color:var(--text2);">
+      Selecciona un drone arriba para ver el checklist
+    </div>
+
+    <div id="clSections" style="display:none"></div>
+
+    <button class="btn" id="clResetBtn" onclick="clReset()" style="display:none;width:100%;justify-content:center;margin-top:10px;color:var(--text2);">
+      Reiniciar checklist
+    </button>
+  </div>
+
   <div class="footer">Geonex Aerial © 2026 · Panel de Piloto v1.0</div>
 </div>
 
@@ -262,6 +306,7 @@ function resetGPSBtn() {
 function onDroneChange() {
   const val = document.getElementById('droneSelect').value;
   selectedDrone = DRONES[val] || null;
+  clLoad(val);
   const info = document.getElementById('droneInfo');
   if (!selectedDrone) { info.classList.remove('visible','mi-flota','otro'); return; }
   document.getElementById('infoName').textContent = selectedDrone.name;
@@ -372,6 +417,168 @@ async function checkWeather() {
 
   btn.disabled = false;
   btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg> Verificar condiciones';
+}// ── CHECKLIST ──────────────────────────────────────────────
+const CL_GENERAL = [
+  { sec:"equipo", label:"Equipo físico", icon:"✈", items:[
+    "Estructura del drone sin daños visibles",
+    "Hélices bien ajustadas y sin grietas",
+    "Brazos y motores sin obstrucciones",
+    "Gimbal y cámara sin golpes ni suciedad",
+    "Lente limpio (sin huellas ni polvo)",
+    "Tarjeta SD insertada y con espacio suficiente",
+  ]},
+  { sec:"bateria", label:"Batería y carga", icon:"🔋", items:[
+    "Batería del drone al 100% (o mínimo 80%)",
+    "Batería del control remoto cargada",
+    "Batería del celular / tablet cargada",
+    "Batería correctamente insertada y trabada",
+    "Sin hinchazón ni daños en la batería",
+  ]},
+  { sec:"clima", label:"Clima y espacio aéreo", icon:"🌤", items:[
+    "Verificar condiciones de viento (app Geonex)",
+    "Sin lluvia ni pronóstico de lluvia",
+    "Visibilidad mayor a 5 km",
+    "Zona sin restricción de espacio aéreo (SENEAM)",
+    "Sin vuelos manuales de avión en la zona",
+  ]},
+  { sec:"camara", label:"Cámara y memoria", icon:"📷", items:[
+    "Ajustes de cámara configurados (ISO, velocidad)",
+    "Modo de vuelo seleccionado (foto / video / mapeo)",
+    "Formato de archivo correcto (RAW / JPG / MP4)",
+    "Tarjeta SD formateada o con espacio libre",
+    "Protector de gimbal retirado",
+  ]},
+  { sec:"zona", label:"Zona de vuelo y permisos", icon:"📍", items:[
+    "Área de vuelo inspeccionada a pie",
+    "Sin cables de alta tensión en la zona",
+    "Sin personas o animales en el área de despegue",
+    "Punto de Home marcado y visible",
+    "Permiso del propietario del terreno obtenido",
+    "Documentación del drone disponible (AFAC)",
+  ]},
+];
+
+const CL_EXTRAS = {
+  air3s:[
+    { sec:"equipo", text:"Verificar sellado IP54 (juntas sin polvo ni humedad)" },
+    { sec:"equipo", text:"Modos obstacle avoidance activos (APAS 5.0)" },
+    { sec:"camara", text:"Cámara principal + tele configuradas correctamente" },
+    { sec:"bateria", text:"Batería Intelligent Flight compatible con Air 3S" },
+  ],
+  mavic2s:[
+    { sec:"equipo", text:'Sensor 1" Hasselblad sin rayaduras ni polvo' },
+    { sec:"equipo", text:"Sin protección IP — evitar humedad y polvo fino" },
+    { sec:"camara", text:"Ajuste de color Hasselblad Natural Colour Solution" },
+    { sec:"bateria", text:"Batería Intelligent Flight Pro cargada (5000mAh)" },
+  ],
+  mini4pro:[
+    { sec:"equipo", text:"Verificar protección IP34 — evitar lluvia directa" },
+    { sec:"zona",   text:"Peso <250g — confirmar regulación local aplicable" },
+  ],
+  mavic3e:[
+    { sec:"equipo", text:"Verificar sellado IP54 completo" },
+    { sec:"camara", text:"Payload enterprise instalado correctamente" },
+    { sec:"zona",   text:"Plan de misión cargado en DJI Pilot 2" },
+  ],
+  matrice350:[
+    { sec:"equipo", text:"Doble batería correctamente instalada (TB65/TB60)" },
+    { sec:"equipo", text:"Payload (cámara / LiDAR) asegurado y calibrado" },
+    { sec:"zona",   text:"RTK activado y con señal de base station" },
+    { sec:"zona",   text:"Plan de misión cargado en DJI Pilot 2" },
+  ],
+};
+
+let clChecked = {};
+
+function clLoad(droneKey) {
+  if (!droneKey) {
+    document.getElementById('clNoDrone').style.display = 'block';
+    document.getElementById('clSections').style.display = 'none';
+    document.getElementById('clProgressWrap').style.display = 'none';
+    document.getElementById('clResetBtn').style.display = 'none';
+    return;
+  }
+  document.getElementById('clNoDrone').style.display = 'none';
+  document.getElementById('clSections').style.display = 'block';
+  document.getElementById('clProgressWrap').style.display = 'block';
+  document.getElementById('clResetBtn').style.display = 'flex';
+  clChecked = {};
+  const extras = CL_EXTRAS[droneKey] || [];
+  let html = '';
+  CL_GENERAL.forEach(sec => {
+    const secExtras = extras.filter(e => e.sec === sec.sec);
+    const all = sec.items.map(t => ({ text:t, extra:false })).concat(secExtras.map(e => ({ text:e.text, extra:true })));
+    html += `<div class="cl-section">
+      <div class="cl-sec-header" onclick="clToggleSec('${sec.sec}')">
+        <span style="font-size:15px">${sec.icon}</span>
+        <span class="cl-sec-title">${sec.label}</span>
+        <span class="cl-sec-cnt" id="clcnt-${sec.sec}">0/${all.length}</span>
+      </div>
+      <div class="cl-body" id="clbody-${sec.sec}">`;
+    all.forEach((it, i) => {
+      const key = `${sec.sec}-${i}`;
+      html += `<div class="cl-item${it.extra?' extra':''}" onclick="clToggle('${key}','${sec.sec}')">
+        <div class="cl-check" id="clcb-${key}"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <span class="cl-txt" id="cltxt-${key}">${it.text}</span>
+        ${it.extra ? '<span class="cl-badge">Este drone</span>' : ''}
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+  document.getElementById('clSections').innerHTML = html;
+  clUpdateProgress();
+}
+
+function clToggleSec(sec) {
+  const b = document.getElementById('clbody-' + sec);
+  b.style.display = b.style.display === 'none' ? 'block' : 'none';
+}
+
+function clToggle(key, sec) {
+  clChecked[key] = !clChecked[key];
+  const cb = document.getElementById('clcb-' + key);
+  const txt = document.getElementById('cltxt-' + key);
+  cb.classList.toggle('on', clChecked[key]);
+  txt.classList.toggle('done', clChecked[key]);
+  clUpdateSecCount(sec);
+  clUpdateProgress();
+}
+
+function clUpdateSecCount(sec) {
+  const body = document.getElementById('clbody-' + sec);
+  if (!body) return;
+  const total = body.querySelectorAll('.cl-item').length;
+  const done = Object.keys(clChecked).filter(k => k.startsWith(sec+'-') && clChecked[k]).length;
+  document.getElementById('clcnt-' + sec).textContent = `${done}/${total}`;
+}
+
+function clUpdateProgress() {
+  const all = document.querySelectorAll('.cl-item').length;
+  const done = Object.values(clChecked).filter(Boolean).length;
+  const pct = all > 0 ? Math.round(done / all * 100) : 0;
+  document.getElementById('clPct').textContent = pct + '%';
+  document.getElementById('clFill').style.width = pct + '%';
+  const vd = document.getElementById('clVerdict');
+  if (pct === 100) {
+    vd.style.display = 'block';
+    vd.style.background = 'var(--green-bg)'; vd.style.color = 'var(--green-txt)';
+    vd.textContent = '✅ Checklist completo. ¡Listo para despegar!';
+  } else if (pct >= 80) {
+    vd.style.display = 'block';
+    vd.style.background = 'var(--yellow-bg)'; vd.style.color = 'var(--yellow-txt)';
+    vd.textContent = `⚠️ Faltan ${all - done} items. Completa antes de volar.`;
+  } else {
+    vd.style.display = 'none';
+  }
+  CL_GENERAL.forEach(s => clUpdateSecCount(s.sec));
+}
+
+function clReset() {
+  clChecked = {};
+  document.querySelectorAll('.cl-check').forEach(cb => cb.classList.remove('on'));
+  document.querySelectorAll('.cl-txt').forEach(t => t.classList.remove('done'));
+  document.getElementById('clVerdict').style.display = 'none';
+  clUpdateProgress();
 }
 </script>
 </body>
