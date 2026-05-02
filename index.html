@@ -644,48 +644,70 @@ function mGenerateGrid(){
   if(mRoute){mRoute.remove();mRoute=null;}
   mWpMarkers.forEach(m=>m.remove());mWpMarkers=[];
   if(!mClosed||mPoints.length<3)return;
+
   const bounds=L.latLngBounds(mPoints);
   const pathDist=parseFloat(document.getElementById('mPathDist').value)||10;
   const overlap=parseFloat(document.getElementById('mOverlap').value)||80;
   const alt=parseFloat(document.getElementById('mAlt').value)||60;
   const orientation=document.getElementById('mOrientation').value;
-  const photoDist=Math.max(3,alt*(1-overlap/100)*1.5);
-  const latPath=pathDist/111320;
-  const latPhoto=photoDist/111320;
-  const lngPhoto=photoDist/(111320*Math.cos(bounds.getCenter().lat*Math.PI/180));
-  const segments=[];
-  if(orientation==='ew'){
-    const lats=[];
-    for(let lat=bounds.getSouth();lat<=bounds.getNorth()+latPath;lat+=latPath)lats.push(lat);
-    lats.forEach((lat,i)=>{
-      const p1=L.latLng(lat,bounds.getWest()-0.002),p2=L.latLng(lat,bounds.getEast()+0.002);
-      const c=mClipLineToPoly(i%2===0?p1:p2,i%2===0?p2:p1,mPoints);
-      if(c)segments.push(c);
-    });
-  }else{
-    const lngs=[];
-    const lngPath=pathDist/(111320*Math.cos(bounds.getCenter().lat*Math.PI/180));
-    for(let lng=bounds.getWest();lng<=bounds.getEast()+lngPath;lng+=lngPath)lngs.push(lng);
-    lngs.forEach((lng,i)=>{
-      const p1=L.latLng(bounds.getSouth()-0.002,lng),p2=L.latLng(bounds.getNorth()+0.002,lng);
-      const c=mClipLineToPoly(i%2===0?p1:p2,i%2===0?p2:p1,mPoints);
-      if(c)segments.push(c);
-    });
-  }
-  const allWPs=[];
-  segments.forEach(seg=>{
-    const segDist=seg[0].distanceTo(seg[1]);
-    const steps=Math.max(1,Math.floor(segDist/photoDist));
-    for(let s=0;s<=steps;s++){
-      const t=s/steps;
-      allWPs.push(L.latLng(
-        seg[0].lat+t*(seg[1].lat-seg[0].lat),
-        seg[0].lng+t*(seg[1].lng-seg[0].lng)
-      ));
+
+  // Distancia entre fotos — mínimo 5m
+  const photoDist=Math.max(5, alt*(1-overlap/100)*1.2);
+
+  // Convertir a grados
+  const centerLat=bounds.getCenter().lat;
+  const mPerLat=111320;
+  const mPerLng=111320*Math.cos(centerLat*Math.PI/180);
+  const latPath=pathDist/mPerLat;
+  const lngPath=pathDist/mPerLng;
+  const latPhoto=photoDist/mPerLat;
+  const lngPhoto=photoDist/mPerLng;
+
+  // Función punto dentro de polígono
+  function pointInPoly(lat,lng,poly){
+    let inside=false;
+    for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+      const xi=poly[i].lng,yi=poly[i].lat,xj=poly[j].lng,yj=poly[j].lat;
+      if(((yi>lat)!==(yj>lat))&&(lng<(xj-xi)*(lat-yi)/(yj-yi)+xi))inside=!inside;
     }
-  });
-  if(allWPs.length===0)return;
-  mRoute=L.polyline(allWPs,{color:'#E24B4A',weight:2,opacity:0.85}).addTo(mMap);
+    return inside;
+  }
+
+  const allWPs=[];
+  if(orientation==='ew'){
+    let row=0;
+    for(let lat=bounds.getSouth()+latPath/2;lat<=bounds.getNorth();lat+=latPath,row++){
+      const rowPts=[];
+      for(let lng=bounds.getWest();lng<=bounds.getEast()+lngPhoto;lng+=lngPhoto){
+        if(pointInPoly(lat,lng,mPoints))rowPts.push(L.latLng(lat,lng));
+      }
+      if(rowPts.length===0)continue;
+      // Agregar solo inicio y fin de cada pasada + conectar en serpentina
+      if(row%2===0){allWPs.push(...rowPts);}
+      else{allWPs.push(...[...rowPts].reverse());}
+    }
+  }else{
+    let col=0;
+    for(let lng=bounds.getWest()+lngPath/2;lng<=bounds.getEast();lng+=lngPath,col++){
+      const colPts=[];
+      for(let lat=bounds.getSouth();lat<=bounds.getNorth()+latPhoto;lat+=latPhoto){
+        if(pointInPoly(lat,lng,mPoints))colPts.push(L.latLng(lat,lng));
+      }
+      if(colPts.length===0)continue;
+      if(col%2===0){allWPs.push(...colPts);}
+      else{allWPs.push(...[...colPts].reverse());}
+    }
+  }
+
+  if(allWPs.length===0){
+    alert('No se generaron waypoints. Intenta reducir la distancia entre pasadas o el overlap.');
+    return;
+  }
+
+  // Dibujar línea roja de ruta
+  mRoute=L.polyline(allWPs,{color:'#E24B4A',weight:2,opacity:0.9}).addTo(mMap);
+
+  // Dibujar waypoints numerados en azul
   mWpMarkers=allWPs.map((wp,i)=>{
     const icon=L.divIcon({
       html:`<div style="width:20px;height:20px;background:#185FA5;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.5);">${i+1}</div>`,
