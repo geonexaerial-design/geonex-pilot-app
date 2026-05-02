@@ -601,7 +601,7 @@ function mAddPoint(latlng){
 
 window.mClosePolygon=function(){
   if(mMode!=='polygon'||mPoints.length<3||mClosed)return;
-  mClosed=true;mRedrawLines();mGenerateGrid();mUpdateHint();
+  mClosed=true;mRedrawLines();mUpdateHint();
   mMap.getContainer().classList.remove('crosshair-mode');
   document.getElementById('mClosedBadge').style.display='inline';
   mRenderList();mUpdateStats();
@@ -718,7 +718,7 @@ function mGenerateGrid(){
   document.getElementById('mStatPts').textContent=allWPs.length;
 }
 
-window.mOnConfig=function(){if(mClosed)mGenerateGrid();mUpdateStats();};
+window.mOnConfig=function(){mUpdateStats();};
 
 function mClearLayers(){
   mMarkers.forEach(m=>m.remove());mMarkers=[];
@@ -763,7 +763,7 @@ window.mRemovePoint=function(i){
     const icon=mMode==='polygon'&&idx===0?mFirstIcon():mWpIcon(idx+1,color);
     mMarkers.push(L.marker(p,{icon}).addTo(mMap));
   });
-  mRedrawLines();if(mClosed)mGenerateGrid();
+  mRedrawLines();
   mUpdateHint();mRenderList();mUpdateStats();
 };
 
@@ -867,7 +867,8 @@ function mAddPoint(latlng){
 window.mClosePolygon=function(){
   if(mMode!=='polygon'||mPoints.length<3||mClosed)return;
   mClosed=true;
-  mRedrawLines(); mGenerateGrid();
+  mRedrawLines();
+  mMap.getContainer().classList.remove('crosshair-mode');
   mUpdateHint();
   document.getElementById('mClosedBadge').style.display='inline';
   mRenderList(); mUpdateStats();
@@ -919,7 +920,7 @@ window.mRemovePoint=function(i){
     const icon=mMode==='polygon'&&idx===0?mFirstIcon():mWpIcon(idx+1,color);
     const mk=L.marker(p,{icon}).addTo(mMap);mMarkers.push(mk);
   });
-  mRedrawLines();if(mClosed)mGenerateGrid();
+  mRedrawLines();
   mUpdateHint();mRenderList();mUpdateStats();
 };
 
