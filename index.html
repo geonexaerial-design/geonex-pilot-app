@@ -606,37 +606,89 @@ function mRedrawLines(){
   }
 }
 
+// Intersección de segmento con el polígono — devuelve puntos recortados dentro
+let mWpMarkers=[];
+
+function mClipLineToPoly(p1,p2,poly){
+  const x1=p1.lng,y1=p1.lat,x2=p2.lng,y2=p2.lat;
+  let tMin=0,tMax=1;
+  const n=poly.length;
+  for(let i=0;i<n;i++){
+    const j=(i+1)%n;
+    const ex=poly[j].lng-poly[i].lng,ey=poly[j].lat-poly[i].lat;
+    const nx=-ey,ny=ex;
+    const denom=nx*(x2-x1)+ny*(y2-y1);
+    const num=nx*(poly[i].lng-x1)+ny*(poly[i].lat-y1);
+    if(Math.abs(denom)<1e-12){if(num<0)return null;continue;}
+    const t=num/denom;
+    if(denom<0){if(t>tMin)tMin=t;}else{if(t<tMax)tMax=t;}
+    if(tMin>tMax+1e-10)return null;
+  }
+  if(tMin>tMax+1e-10)return null;
+  return[L.latLng(y1+tMin*(y2-y1),x1+tMin*(x2-x1)),L.latLng(y1+tMax*(y2-y1),x1+tMax*(x2-x1))];
+}
+
 function mGenerateGrid(){
   if(mRoute){mRoute.remove();mRoute=null;}
+  mWpMarkers.forEach(m=>m.remove());mWpMarkers=[];
   if(!mClosed||mPoints.length<3)return;
   const bounds=L.latLngBounds(mPoints);
   const pathDist=parseFloat(document.getElementById('mPathDist').value)||10;
+  const overlap=parseFloat(document.getElementById('mOverlap').value)||80;
+  const alt=parseFloat(document.getElementById('mAlt').value)||60;
   const orientation=document.getElementById('mOrientation').value;
-  const latSpacing=pathDist/111320;
-  const lngSpacing=pathDist/(111320*Math.cos(bounds.getCenter().lat*Math.PI/180));
-  const pts=[];
+  const photoDist=Math.max(3,alt*(1-overlap/100)*1.5);
+  const latPath=pathDist/111320;
+  const latPhoto=photoDist/111320;
+  const lngPhoto=photoDist/(111320*Math.cos(bounds.getCenter().lat*Math.PI/180));
+  const segments=[];
   if(orientation==='ew'){
     const lats=[];
-    for(let lat=bounds.getSouth();lat<=bounds.getNorth()+latSpacing;lat+=latSpacing)lats.push(lat);
+    for(let lat=bounds.getSouth();lat<=bounds.getNorth()+latPath;lat+=latPath)lats.push(lat);
     lats.forEach((lat,i)=>{
-      const row=[L.latLng(lat,bounds.getWest()),L.latLng(lat,bounds.getEast())];
-      pts.push(...(i%2===0?row:[...row].reverse()));
+      const p1=L.latLng(lat,bounds.getWest()-0.002),p2=L.latLng(lat,bounds.getEast()+0.002);
+      const c=mClipLineToPoly(i%2===0?p1:p2,i%2===0?p2:p1,mPoints);
+      if(c)segments.push(c);
     });
   }else{
     const lngs=[];
-    for(let lng=bounds.getWest();lng<=bounds.getEast()+lngSpacing;lng+=lngSpacing)lngs.push(lng);
+    const lngPath=pathDist/(111320*Math.cos(bounds.getCenter().lat*Math.PI/180));
+    for(let lng=bounds.getWest();lng<=bounds.getEast()+lngPath;lng+=lngPath)lngs.push(lng);
     lngs.forEach((lng,i)=>{
-      const row=[L.latLng(bounds.getSouth(),lng),L.latLng(bounds.getNorth(),lng)];
-      pts.push(...(i%2===0?row:[...row].reverse()));
+      const p1=L.latLng(bounds.getSouth()-0.002,lng),p2=L.latLng(bounds.getNorth()+0.002,lng);
+      const c=mClipLineToPoly(i%2===0?p1:p2,i%2===0?p2:p1,mPoints);
+      if(c)segments.push(c);
     });
   }
-  mRoute=L.polyline(pts,{color:'#00d4ff',weight:1.5,opacity:0.9}).addTo(mMap);
+  const allWPs=[];
+  segments.forEach(seg=>{
+    const segDist=seg[0].distanceTo(seg[1]);
+    const steps=Math.max(1,Math.floor(segDist/photoDist));
+    for(let s=0;s<=steps;s++){
+      const t=s/steps;
+      allWPs.push(L.latLng(
+        seg[0].lat+t*(seg[1].lat-seg[0].lat),
+        seg[0].lng+t*(seg[1].lng-seg[0].lng)
+      ));
+    }
+  });
+  if(allWPs.length===0)return;
+  mRoute=L.polyline(allWPs,{color:'#E24B4A',weight:2,opacity:0.85}).addTo(mMap);
+  mWpMarkers=allWPs.map((wp,i)=>{
+    const icon=L.divIcon({
+      html:`<div style="width:20px;height:20px;background:#185FA5;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.5);">${i+1}</div>`,
+      className:'',iconAnchor:[10,10]
+    });
+    return L.marker(wp,{icon}).addTo(mMap);
+  });
+  document.getElementById('mStatPts').textContent=allWPs.length;
 }
 
 window.mOnConfig=function(){if(mClosed)mGenerateGrid();mUpdateStats();};
 
 function mClearLayers(){
   mMarkers.forEach(m=>m.remove());mMarkers=[];
+  mWpMarkers.forEach(m=>m.remove());mWpMarkers=[];
   if(mPolyline){mPolyline.remove();mPolyline=null;}
   if(mPolygon){mPolygon.remove();mPolygon=null;}
   if(mRoute){mRoute.remove();mRoute=null;}
@@ -785,37 +837,11 @@ function mRedrawLines(){
   if(mPolyline){mPolyline.remove();mPolyline=null;}
   if(mPolygon){mPolygon.remove();mPolygon=null;}
   if(mMode==='waypoint'){
-    if(mPoints.length>1) mPolyline=L.polyline(mPoints,{color:'#1a1a2e',weight:2,dashArray:'6,4'}).addTo(mMap);
+    if(mPoints.length>1) mPolyline=L.polyline(mPoints,{color:'#ffffff',weight:2.5,dashArray:'6,4',opacity:0.9}).addTo(mMap);
   }else{
     if(mClosed) mPolygon=L.polygon(mPoints,{color:'#E24B4A',fillColor:'#E24B4A',fillOpacity:0.15,weight:2}).addTo(mMap);
-    else if(mPoints.length>1) mPolyline=L.polyline(mPoints,{color:'#E24B4A',weight:2,dashArray:'6,4',opacity:0.6}).addTo(mMap);
+    else if(mPoints.length>1) mPolyline=L.polyline(mPoints,{color:'#E24B4A',weight:2,dashArray:'6,4',opacity:0.7}).addTo(mMap);
   }
-}
-
-function mGenerateGrid(){
-  if(mRoute){mRoute.remove();mRoute=null;}
-  if(!mClosed||mPoints.length<3)return;
-  const bounds=L.latLngBounds(mPoints);
-  const alt=parseInt(document.getElementById('mAlt').value)||80;
-  const side=parseInt(document.getElementById('mSide').value)||70;
-  const spacing=alt*(1-side/100)*0.7/111320;
-  const lats=[];
-  for(let lat=bounds.getSouth();lat<=bounds.getNorth()+spacing;lat+=spacing)lats.push(lat);
-  const pts=[];
-  lats.forEach((lat,i)=>{
-    const row=[L.latLng(lat,bounds.getWest()),L.latLng(lat,bounds.getEast())];
-    pts.push(...(i%2===0?row:[...row].reverse()));
-  });
-  mRoute=L.polyline(pts,{color:'#185FA5',weight:1.5,opacity:0.7}).addTo(mMap);
-}
-
-window.mOnConfig=function(){if(mClosed)mGenerateGrid();mUpdateStats();};
-
-function mClearLayers(){
-  mMarkers.forEach(m=>m.remove());mMarkers=[];
-  if(mPolyline){mPolyline.remove();mPolyline=null;}
-  if(mPolygon){mPolygon.remove();mPolygon=null;}
-  if(mRoute){mRoute.remove();mRoute=null;}
 }
 
 window.mClearAll=function(){
