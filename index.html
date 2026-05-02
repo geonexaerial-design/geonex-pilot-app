@@ -93,6 +93,7 @@
     @keyframes spin{to{transform:rotate(360deg);}}
     /* PLANIFICADOR */
     #missionMap{width:100%;height:300px;border-radius:10px;border:1.5px solid var(--border);z-index:1;cursor:grab;}
+    #missionMap.crosshair-mode,#missionMap.crosshair-mode .leaflet-container,#missionMap.crosshair-mode .leaflet-map-pane{cursor:crosshair!important;}
     .tool-btn{font-family:inherit;font-size:12px;padding:7px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;display:flex;align-items:center;gap:5px;transition:all 0.15s;}
     .tool-btn:hover{background:var(--bg2);}
     .tool-btn.t-active{background:var(--blue);color:white;border-color:var(--blue);}
@@ -348,10 +349,16 @@
       <input type="text" id="mMissionName" placeholder="Ej: Parcela Norte — Parácuaro" style="flex:1;"/>
     </div>
 
-    <button class="btn btn-primary" id="mExportBtn" onclick="mExportKML()" disabled style="width:100%;justify-content:center;padding:12px;">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Generar y descargar misión KMZ para DJI
-    </button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <button class="btn btn-primary" id="mGenerateBtn" onclick="mGenerate()" disabled style="justify-content:center;padding:12px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Generar misión
+      </button>
+      <button class="btn" id="mExportBtn" onclick="mExportKML()" disabled style="justify-content:center;padding:12px;background:var(--green-bg);color:var(--green-txt);border-color:#C0DD97;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Descargar KML
+      </button>
+    </div>
   </div>
 
   <div class="footer">Geonex Aerial © 2026 · Panel de Piloto v1.0</div>
@@ -564,7 +571,10 @@ window.mSetMode=function(m){
   document.getElementById('mBtnPoly').classList.toggle('t-active',m==='polygon');
   document.getElementById('mBtnClose').style.display=m==='polygon'?'flex':'none';
   document.getElementById('mClosedBadge').style.display='none';
-  mMap.getContainer().style.cursor=m==='polygon'?'crosshair':'grab';
+  // Cambiar cursor del mapa
+  const container=mMap.getContainer();
+  if(m==='polygon'){container.classList.add('crosshair-mode');}
+  else{container.classList.remove('crosshair-mode');}
   mUpdateHint();mRenderList();mUpdateStats();
 };
 
@@ -592,6 +602,7 @@ function mAddPoint(latlng){
 window.mClosePolygon=function(){
   if(mMode!=='polygon'||mPoints.length<3||mClosed)return;
   mClosed=true;mRedrawLines();mGenerateGrid();mUpdateHint();
+  mMap.getContainer().classList.remove('crosshair-mode');
   document.getElementById('mClosedBadge').style.display='inline';
   mRenderList();mUpdateStats();
 };
@@ -749,8 +760,14 @@ function mUpdateStats(){
   const speed=parseFloat(document.getElementById('mSpeed').value)||2.5;
   const time=dist>0?Math.ceil(dist/speed/60):0;
   document.getElementById('mStatTime').textContent=time+'min';
-  document.getElementById('mExportBtn').disabled=mMode==='waypoint'?mPoints.length<2:!mClosed;
+  document.getElementById('mGenerateBtn').disabled=mMode==='waypoint'?mPoints.length<2:!mClosed;
+  document.getElementById('mExportBtn').disabled=true;
 }
+
+window.mGenerate=function(){
+  mGenerateGrid();
+  document.getElementById('mExportBtn').disabled=false;
+};
 
 window.mExportKML=function(){
   const alt=document.getElementById('mAlt').value;
@@ -899,20 +916,9 @@ function mUpdateStats(){
   const speed=parseFloat(document.getElementById('mSpeed').value)||8;
   const time=dist>0?Math.ceil(dist/speed/60):0;
   document.getElementById('mStatTime').textContent=time+'min';
-  document.getElementById('mExportBtn').disabled=mMode==='waypoint'?mPoints.length<2:!mClosed;
+  document.getElementById('mGenerateBtn').disabled=mMode==='waypoint'?mPoints.length<2:!mClosed;
+  document.getElementById('mExportBtn').disabled=true;
 }
-
-window.mExportKML=function(){
-  const alt=document.getElementById('mAlt').value;
-  const speed=document.getElementById('mSpeed').value;
-  const placemarks=mPoints.map((p,i)=>`<Placemark><name>${mMode==='polygon'?'V':'WP'}${i+1}</name><Point><coordinates>${p.lng},${p.lat},${alt}</coordinates></Point></Placemark>`).join('');
-  const routeCoords=mPoints.map(p=>`${p.lng},${p.lat},${alt}`).join(' ')+(mClosed?` ${mPoints[0].lng},${mPoints[0].lat},${alt}`:'');
-  const kml=`<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n<name>Geonex Aerial — Misión ${new Date().toLocaleDateString()}</name>\n<description>Velocidad: ${speed} m/s | Altitud: ${alt} m</description>\n<Style id="r"><LineStyle><color>ff1a1a2e</color><width>2</width></LineStyle></Style>\n<Placemark><name>Ruta</name><styleUrl>#r</styleUrl><LineString><altitudeMode>relativeToGround</altitudeMode><coordinates>${routeCoords}</coordinates></LineString></Placemark>\n${placemarks}\n</Document>\n</kml>`;
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([kml],{type:'application/vnd.google-earth.kml+xml'}));
-  a.download=`geonex-mision-${new Date().toISOString().split('T')[0]}.kml`;
-  a.click();
-};
 </script>
 </body>
 </html>
