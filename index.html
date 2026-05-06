@@ -210,8 +210,14 @@ a{color:var(--blue);text-decoration:none}
   .form-grid,.cfg-grid,.bat-result-grid,.stat-grid{grid-template-columns:1fr}
 }
 /* ── LEAFLET CURSOR ── */
-.crosshair,.crosshair.leaflet-container{cursor:crosshair!important}
-.crosshair *{cursor:crosshair!important}
+.crosshair-mode,
+.crosshair-mode.leaflet-container,
+.crosshair-mode .leaflet-container,
+.crosshair-mode .leaflet-map-pane,
+.crosshair-mode .leaflet-tile-pane,
+.crosshair-mode .leaflet-overlay-pane,
+.crosshair-mode .leaflet-marker-pane,
+.crosshair-mode .leaflet-interactive{cursor:crosshair!important}
 .leaflet-div-icon{background:transparent!important;border:none!important}
 /* ── SEARCH BOX ── */
 #planSearchRes div:hover{background:var(--bg3)}
@@ -952,11 +958,13 @@ function onPlanClick(e){
   if(S.planMode==='waypoint'){
     addWaypoint(e.latlng);
   } else if(S.planMode==='polygon' && !S.polyClosed){
-    // check if clicking first point to close
+    // check if tapping near first point (25px) to close
     if(S.polyPts.length >= 3){
       const first = S.polyPts[0];
-      const dist = maps.plan.distance(e.latlng, [first.lat, first.lng]);
-      if(dist < 30){ closePoly(); return; }
+      const pClick = maps.plan.latLngToContainerPoint(e.latlng);
+      const pFirst = maps.plan.latLngToContainerPoint([first.lat, first.lng]);
+      const px = Math.sqrt(Math.pow(pClick.x-pFirst.x,2)+Math.pow(pClick.y-pFirst.y,2));
+      if(px < 25){ closePoly(); return; }
     }
     addPolyPt(e.latlng);
   }
@@ -964,15 +972,17 @@ function onPlanClick(e){
 
 function setPlanMode(mode){
   S.planMode = mode;
+  S.polyClosed = false;
   document.getElementById('btnWP').classList.toggle('active-mode', mode==='waypoint');
   document.getElementById('btnPoly').classList.toggle('active-mode', mode==='polygon');
+  const mapEl = document.getElementById('planMap');
   const infoEl = document.getElementById('planModeInfo');
   if(mode==='waypoint'){
     infoEl.textContent = '📍 Click en el mapa para agregar waypoints numerados';
-    document.getElementById('planMap').classList.remove('crosshair');
+    mapEl.classList.remove('crosshair-mode');
   } else {
     infoEl.textContent = '⬡ Click para trazar el área. Toca el punto 1 (verde) o usa "Cerrar Polígono" para finalizar';
-    document.getElementById('planMap').classList.add('crosshair');
+    mapEl.classList.add('crosshair-mode');
   }
 }
 
@@ -1007,27 +1017,39 @@ function drawPolyLine(){
 }
 
 function closePoly(){
-  if(!maps.plan){ toast('El mapa aún no está listo','warn'); return; }
-  if(S.polyPts.length < 3){ toast('Necesitas al menos 3 puntos en el polígono','warn'); return; }
+  if(!maps.plan || !mapInited.plan){ toast('El mapa aún no está listo','warn'); return; }
+  if(S.polyPts.length < 3){ toast('Necesitas al menos 3 puntos para cerrar el polígono','warn'); return; }
+  if(S.polyClosed) return;
   S.polyClosed = true;
+  S.planMode = 'none';
+  // quitar cursor crosshair
+  document.getElementById('planMap').classList.remove('crosshair-mode');
+  document.getElementById('btnPoly').classList.remove('active-mode');
   drawPolyLine();
   if(S.polyFill) maps.plan.removeLayer(S.polyFill);
   S.polyFill = L.polygon(S.polyPts.map(p=>[p.lat,p.lng]),{
     color:'#ff9800', fillColor:'rgba(255,152,0,0.15)', weight:2
   }).addTo(maps.plan);
   maps.plan.fitBounds(S.polyFill.getBounds().pad(0.1));
-  document.getElementById('planModeInfo').textContent = '✓ Polígono cerrado. Configura la misión y presiona "Generar Misión"';
+  const area = (polygonArea(S.polyPts)/10000).toFixed(2);
+  document.getElementById('planModeInfo').innerHTML =
+    `<span style="background:rgba(76,175,80,.2);color:var(--green);border:1px solid var(--green);padding:2px 8px;border-radius:10px;font-weight:700">✅ Área cerrada</span> · ${S.polyPts.length} puntos · ${area} ha — Presiona <strong>Generar Misión</strong>`;
   toast('Polígono cerrado ✓','ok');
 }
 
 function clearPlan(){
-  S.wpMarkers.forEach(w=>maps.plan.removeLayer(w.marker));
-  S.polyMarkers.forEach(m=>maps.plan.removeLayer(m));
-  S.generatedWPs.forEach(w=>{ if(w._mk) maps.plan.removeLayer(w._mk); });
-  if(S.polyLine) maps.plan.removeLayer(S.polyLine);
-  if(S.polyFill) maps.plan.removeLayer(S.polyFill);
-  if(S.wpLine)   maps.plan.removeLayer(S.wpLine);
-  S.wpMarkers=[]; S.polyMarkers=[]; S.polyPts=[]; S.polyClosed=false; S.generatedWPs=[];
+  if(maps.plan){
+    S.wpMarkers.forEach(w=>maps.plan.removeLayer(w.marker));
+    S.polyMarkers.forEach(m=>maps.plan.removeLayer(m));
+    S.generatedWPs.forEach(w=>{ if(w._mk) maps.plan.removeLayer(w._mk); });
+    if(S.polyLine) maps.plan.removeLayer(S.polyLine);
+    if(S.polyFill) maps.plan.removeLayer(S.polyFill);
+    if(S.wpLine)   maps.plan.removeLayer(S.wpLine);
+  }
+  S.wpMarkers=[]; S.polyMarkers=[]; S.polyPts=[]; S.polyClosed=false; S.generatedWPs=[]; S.planMode='none';
+  document.getElementById('planMap').classList.remove('crosshair-mode');
+  document.getElementById('btnWP').classList.remove('active-mode');
+  document.getElementById('btnPoly').classList.remove('active-mode');
   document.getElementById('missionStats').style.display='none';
   document.getElementById('planModeInfo').textContent='Selecciona un modo de trazado';
   toast('Mapa limpiado','info');
