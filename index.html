@@ -69,6 +69,18 @@ a{color:var(--blue);text-decoration:none}
 /* ── MAPS ── */
 .map-box{width:100%;height:300px;border-radius:var(--r12);overflow:hidden;margin-bottom:14px;border:1px solid var(--bdr)}
 .map-box.tall{height:360px}
+.map-wrap{position:relative;margin-bottom:14px}
+.map-wrap .map-box{margin-bottom:0}
+.map-loader{position:absolute;inset:0;background:rgba(7,7,26,.78);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:800;border-radius:var(--r12);gap:8px;transition:opacity .3s;pointer-events:none}
+.map-loader.hidden{opacity:0}
+.map-loader span{font-size:13px;color:var(--txt2)}
+.map-reload-btn{position:absolute;top:8px;right:8px;z-index:801;background:var(--bg1);border:1px solid var(--bdr);color:var(--txt);border-radius:var(--r8);padding:5px 9px;font-size:15px;cursor:pointer;line-height:1;box-shadow:var(--shadow)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin-ic{font-size:22px;display:inline-block;animation:spin 1.1s linear infinite}
+/* ── AIRSPACE ALERTS ── */
+.airspace-alert-red{background:rgba(226,75,74,.2);border:2px solid var(--acc);color:var(--acc);border-radius:var(--r8)}
+.airspace-alert-orange{background:rgba(255,152,0,.15);border:2px solid var(--warn);color:var(--warn);border-radius:var(--r8)}
+.airspace-alert-green{background:rgba(76,175,80,.15);border:2px solid var(--green);color:var(--green);border-radius:var(--r8)}
 /* ── BUTTONS ── */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;border-radius:var(--r8);border:none;cursor:pointer;font-size:13px;font-weight:600;transition:all .18s;white-space:nowrap}
 .btn-p{background:var(--acc);color:#fff}.btn-p:hover{background:var(--acc2)}
@@ -237,7 +249,11 @@ a{color:var(--blue);text-decoration:none}
 <!-- ① INICIO -->
 <section id="sec-inicio" class="sec act">
   <div class="sec-hdr"><span style="font-size:22px">🏠</span><h2>Inicio</h2></div>
-  <div id="inicioMap" class="map-box"></div>
+  <div class="map-wrap">
+    <div id="inicioMap" class="map-box"></div>
+    <div id="inicioLoader" class="map-loader"><span class="spin-ic">🔄</span><span>Cargando mapa…</span></div>
+    <button class="map-reload-btn" onclick="reloadMapTiles('inicio')" title="Recargar mapa">🔄</button>
+  </div>
   <div class="card">
     <div class="ctit">📍 Mi Ubicación</div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -282,7 +298,11 @@ a{color:var(--blue);text-decoration:none}
       <button class="btn btn-s btn-sm" onclick="planSearchGeo()">🔍</button>
     </div>
   </div>
-  <div id="planMap" class="map-box tall"></div>
+  <div class="map-wrap">
+    <div id="planMap" class="map-box tall"></div>
+    <div id="planLoader" class="map-loader"><span class="spin-ic">🔄</span><span>Cargando mapa…</span></div>
+    <button class="map-reload-btn" onclick="reloadMapTiles('plan')" title="Recargar mapa">🔄</button>
+  </div>
   <div class="card">
     <div class="ctit">🖱️ Modo de Trazado</div>
     <div class="plan-ctrl">
@@ -357,7 +377,11 @@ a{color:var(--blue);text-decoration:none}
       <button class="btn btn-s btn-sm" onclick="closeZonaPoly()">✓ Cerrar Área</button>
       <button class="btn btn-d btn-sm" onclick="clearZonaPoly()">🗑️ Limpiar</button>
     </div>
-    <div id="zonasMap" class="map-box"></div>
+    <div class="map-wrap">
+      <div id="zonasMap" class="map-box"></div>
+      <div id="zonasLoader" class="map-loader"><span class="spin-ic">🔄</span><span>Cargando mapa…</span></div>
+      <button class="map-reload-btn" onclick="reloadMapTiles('zonas')" title="Recargar mapa">🔄</button>
+    </div>
     <div id="zonaPolyInfo" style="font-size:12px;color:var(--txt2);margin-top:4px">
       Haz click en <strong>Dibujar Área</strong> y luego marca los vértices en el mapa. Cierra el polígono tocando el punto 1 o el botón.
     </div>
@@ -412,16 +436,20 @@ a{color:var(--blue);text-decoration:none}
 <!-- ⑨ ESPACIO AÉREO -->
 <section id="sec-espacio" class="sec">
   <div class="sec-hdr"><span style="font-size:22px">✈️</span><h2>Espacio Aéreo</h2></div>
-  <div id="airspaceMap" class="map-box tall"></div>
+  <div class="map-wrap">
+    <div id="airspaceMap" class="map-box tall"></div>
+    <div id="airspaceLoader" class="map-loader"><span class="spin-ic">🔄</span><span>Cargando mapa…</span></div>
+    <button class="map-reload-btn" onclick="reloadMapTiles('airspace')" title="Recargar mapa">🔄</button>
+  </div>
   <div class="card">
-    <div class="ctit">✈️ Aeropuertos Cercanos</div>
+    <div class="ctit">✈️ Aeropuertos y Zonas de Control</div>
     <div id="airspaceInfo"><div class="empty">Obtén ubicación GPS para ver zonas cercanas</div></div>
     <div style="margin-top:12px;border-top:1px solid var(--bdr);padding-top:10px">
-      <div class="leg-item"><span class="leg-dot" style="background:#E24B4A"></span>Zona prohibida (0–2 km)</div>
-      <div class="leg-item"><span class="leg-dot" style="background:#ff9800"></span>Zona restringida (2–5 km)</div>
-      <div class="leg-item"><span class="leg-dot" style="background:#4a9eff"></span>Zona de aviso (5–10 km)</div>
+      <div class="leg-item"><span class="leg-dot" style="background:#E24B4A"></span>Zona prohibida (0–5 km) – No volar</div>
+      <div class="leg-item"><span class="leg-dot" style="background:#ff9800"></span>Zona restringida (5–10 km) – Con precaución</div>
+      <div class="leg-item"><span class="leg-dot" style="background:#4caf50"></span>Zona libre (&gt;10 km)</div>
     </div>
-    <p style="font-size:11px;color:var(--txt2);margin-top:10px">⚠️ Siempre verifica con SENEAM (sct.gob.mx) antes de volar. Este mapa es referencial.</p>
+    <p style="font-size:11px;color:var(--txt2);margin-top:10px">⚠️ Datos referenciales basados en SENEAM. Siempre verifica en <strong>sct.gob.mx</strong> antes de volar.</p>
   </div>
 </section>
 
@@ -828,10 +856,13 @@ function initInicioMap(){
   if(mapInited.inicio) return;
   mapInited.inicio = true;
   const center = S.loc ? [S.loc.lat, S.loc.lng] : [24.8, -107.4];
-  maps.inicio = L.map('inicioMap').setView(center, S.loc?14:6);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    attribution:'© OpenStreetMap contributors', maxZoom:19
+  maps.inicio = L.map('inicioMap', {attributionControl:false}).setView(center, S.loc?13:6);
+  const tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
+    attribution:'© CartoDB', maxZoom:18, keepBuffer:1, updateWhenZooming:false
   }).addTo(maps.inicio);
+  tiles.on('loading', ()=>showMapLoader('inicio'));
+  tiles.on('load',    ()=>hideMapLoader('inicio'));
+  tiles.on('tileerror',()=>hideMapLoader('inicio'));
   if(S.loc){
     L.marker([S.loc.lat,S.loc.lng],{icon:gpsIcon()}).addTo(maps.inicio);
   }
@@ -844,16 +875,27 @@ function gpsIcon(){
   });
 }
 
+function showMapLoader(id){ const el=document.getElementById(id+'Loader'); if(el) el.classList.remove('hidden'); }
+function hideMapLoader(id){ const el=document.getElementById(id+'Loader'); if(el) el.classList.add('hidden'); }
+function reloadMapTiles(id){
+  const m = maps[id];
+  if(!m){ return; }
+  showMapLoader(id);
+  m.eachLayer(l=>{ if(l.redraw) l.redraw(); });
+}
+
 // ── MAP: PLANNER ───────────────────────────────────────────────
 function initPlanMap(){
   if(mapInited.plan) return;
   mapInited.plan = true;
   const center = S.loc ? [S.loc.lat, S.loc.lng] : [24.8, -107.4];
-  maps.plan = L.map('planMap').setView(center, S.loc?14:6);
-  // Esri satellite
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
-    attribution:'Esri World Imagery', maxZoom:19
+  maps.plan = L.map('planMap', {attributionControl:false}).setView(center, S.loc?14:6);
+  const tiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
+    attribution:'Esri', maxZoom:18, keepBuffer:1, updateWhenZooming:false
   }).addTo(maps.plan);
+  tiles.on('loading', ()=>showMapLoader('plan'));
+  tiles.on('load',    ()=>hideMapLoader('plan'));
+  tiles.on('tileerror',()=>hideMapLoader('plan'));
   maps.plan.on('click', onPlanClick);
 }
 
@@ -1531,16 +1573,14 @@ function initZonasMap(){
   if(mapInited.zonas) return;
   mapInited.zonas = true;
   const center = S.loc ? [S.loc.lat, S.loc.lng] : [24.8, -107.4];
-  maps.zonas = L.map('zonasMap').setView(center, S.loc?14:6);
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
-    attribution:'Esri World Imagery', maxZoom:19
+  maps.zonas = L.map('zonasMap', {attributionControl:false}).setView(center, S.loc?14:6);
+  const tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
+    attribution:'© CartoDB', maxZoom:18, keepBuffer:1, updateWhenZooming:false
   }).addTo(maps.zonas);
-  // also add OSM labels layer on top
-  L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner-labels/{z}/{x}/{y}.png',{
-    attribution:'Stamen', maxZoom:19, opacity:0.5
-  }).addTo(maps.zonas);
+  tiles.on('loading', ()=>showMapLoader('zonas'));
+  tiles.on('load',    ()=>hideMapLoader('zonas'));
+  tiles.on('tileerror',()=>hideMapLoader('zonas'));
   maps.zonas.on('click', onZonasClick);
-  // show saved zones
   renderZonasOnMap();
 }
 
@@ -1795,44 +1835,65 @@ function calcGSD(){
 
 // ── AIRSPACE MAP ───────────────────────────────────────────────
 const AIRPORTS = [
-  {n:'AICM',     c:'MMMX', lat:19.4363,lng:-99.0721,  city:'Ciudad de México'},
-  {n:'Felipe Ángeles',c:'MMCT',lat:19.7454,lng:-99.0188,city:'CDMX Norte'},
-  {n:'Guadalajara',c:'MMGL',lat:20.5218,lng:-103.3112, city:'Guadalajara'},
-  {n:'Monterrey', c:'MMMY',lat:25.7785,lng:-100.1066,  city:'Monterrey'},
-  {n:'Cancún',    c:'MMUN',lat:21.0365,lng:-86.8770,   city:'Cancún'},
-  {n:'Tijuana',   c:'MMTJ',lat:32.5411,lng:-116.9701,  city:'Tijuana'},
-  {n:'Mérida',    c:'MMMD',lat:20.9370,lng:-89.6576,   city:'Mérida'},
-  {n:'Los Cabos', c:'MMSD',lat:23.1518,lng:-109.7210,  city:'Los Cabos'},
-  {n:'Puerto Vallarta',c:'MMPR',lat:20.6801,lng:-105.2543,city:'Vallarta'},
-  {n:'Hermosillo',c:'MMHO',lat:29.0958,lng:-111.0482,  city:'Hermosillo'},
-  {n:'Culiacán',  c:'MMCL',lat:24.7645,lng:-107.4748,  city:'Culiacán'},
-  {n:'Mazatlán',  c:'MMMZ',lat:23.1614,lng:-106.2658,  city:'Mazatlán'},
+  // Michoacán
+  {n:'Morelia F.J. Mujica',     c:'MMMM', lat:19.8499, lng:-101.0254, city:'Morelia, Mich.'},
+  {n:'Uruapan L. López Rayón',  c:'MMUP', lat:19.3967, lng:-102.0391, city:'Uruapan, Mich.'},
+  {n:'Lázaro Cárdenas',         c:'MMLC', lat:18.0017, lng:-102.2211, city:'Lázaro Cárdenas, Mich.'},
+  // Occidente / estados cercanos
+  {n:'Guadalajara M. Flores',   c:'MMGL', lat:20.5218, lng:-103.3112, city:'Guadalajara, Jal.'},
+  {n:'Puerto Vallarta',         c:'MMPR', lat:20.6801, lng:-105.2543, city:'Puerto Vallarta, Jal.'},
+  {n:'Del Bajío (Silao)',        c:'MMLO', lat:20.9935, lng:-101.4815, city:'Silao, Gto.'},
+  {n:'Querétaro',               c:'MMQT', lat:20.6173, lng:-100.1858, city:'Querétaro, Qro.'},
+  {n:'Colima',                  c:'MMIA', lat:19.2777, lng:-103.5771, city:'Colima, Col.'},
+  // CDMX / Centro
+  {n:'AICM Benito Juárez',      c:'MMMX', lat:19.4363, lng:-99.0721,  city:'Ciudad de México'},
+  {n:'Felipe Ángeles NAIM',     c:'MMCT', lat:19.7454, lng:-99.0188,  city:'Tizayuca, Hgo.'},
+  {n:'Toluca A. López Mateos',  c:'MMTO', lat:19.3371, lng:-99.5660,  city:'Toluca, Méx.'},
+  // Norte
+  {n:'Monterrey',               c:'MMMY', lat:25.7785, lng:-100.1066, city:'Monterrey, NL'},
+  {n:'Hermosillo',              c:'MMHO', lat:29.0958, lng:-111.0482, city:'Hermosillo, Son.'},
+  {n:'Culiacán',                c:'MMCL', lat:24.7645, lng:-107.4748, city:'Culiacán, Sin.'},
+  {n:'Mazatlán',                c:'MMMZ', lat:23.1614, lng:-106.2658, city:'Mazatlán, Sin.'},
+  {n:'Tijuana',                 c:'MMTJ', lat:32.5411, lng:-116.9701, city:'Tijuana, BC'},
+  // Sur / Sureste
+  {n:'Cancún',                  c:'MMUN', lat:21.0365, lng:-86.8770,  city:'Cancún, QR'},
+  {n:'Mérida',                  c:'MMMD', lat:20.9370, lng:-89.6576,  city:'Mérida, Yuc.'},
+  {n:'Los Cabos',               c:'MMSD', lat:23.1518, lng:-109.7210, city:'Los Cabos, BCS'},
+  {n:'Veracruz H. Jara',        c:'MMVR', lat:19.1459, lng:-96.1873,  city:'Veracruz, Ver.'},
+  {n:'Oaxaca Xoxocotlán',       c:'MMOX', lat:17.0000, lng:-96.7266,  city:'Oaxaca, Oax.'},
 ];
+
+let _airZonesLayer = null;
+let _airGpsLayer   = null;
 
 function initAirspaceMap(){
   if(mapInited.airspace) return;
   mapInited.airspace = true;
-  const center = S.loc ? [S.loc.lat, S.loc.lng] : [24.0, -102.0];
-  const zoom = S.loc ? 10 : 5;
-  maps.airspace = L.map('airspaceMap').setView(center, zoom);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(maps.airspace);
+  const center = S.loc ? [S.loc.lat, S.loc.lng] : [19.85, -101.03];
+  const zoom   = S.loc ? 10 : 6;
+  maps.airspace = L.map('airspaceMap', {attributionControl:false}).setView(center, zoom);
+  const tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
+    attribution:'© CartoDB', maxZoom:18, keepBuffer:1, updateWhenZooming:false
+  }).addTo(maps.airspace);
+  tiles.on('loading', ()=>showMapLoader('airspace'));
+  tiles.on('load',    ()=>hideMapLoader('airspace'));
+  tiles.on('tileerror',()=>hideMapLoader('airspace'));
+  _airZonesLayer = L.layerGroup().addTo(maps.airspace);
+  _airGpsLayer   = L.layerGroup().addTo(maps.airspace);
   drawAirspaceZones();
+  if(S.loc) updateAirspaceMap();
 }
 
 function drawAirspaceZones(){
-  if(!maps.airspace) return;
+  if(!maps.airspace || !_airZonesLayer) return;
+  _airZonesLayer.clearLayers();
   AIRPORTS.forEach(ap=>{
-    // Red: 0-2km
-    L.circle([ap.lat,ap.lng],{radius:2000,color:'#E24B4A',fillColor:'#E24B4A',fillOpacity:.15,weight:2}).addTo(maps.airspace);
-    // Orange: 2-5km
-    L.circle([ap.lat,ap.lng],{radius:5000,color:'#ff9800',fillColor:'#ff9800',fillOpacity:.08,weight:1.5,dashArray:'6,4'}).addTo(maps.airspace);
-    // Blue: 5-10km
-    L.circle([ap.lat,ap.lng],{radius:10000,color:'#4a9eff',fillColor:'#4a9eff',fillOpacity:.04,weight:1,dashArray:'3,6'}).addTo(maps.airspace);
-    // Marker
+    L.circle([ap.lat,ap.lng],{radius:5000, color:'#E24B4A',fillColor:'#E24B4A',fillOpacity:.13,weight:2,   interactive:false}).addTo(_airZonesLayer);
+    L.circle([ap.lat,ap.lng],{radius:10000,color:'#ff9800',fillColor:'#ff9800',fillOpacity:.06,weight:1.5,dashArray:'6,4',interactive:false}).addTo(_airZonesLayer);
     L.marker([ap.lat,ap.lng],{icon:L.divIcon({
-      className:'',iconSize:[32,32],iconAnchor:[16,16],
-      html:`<div style="background:#1a1a3e;border:2px solid #4a9eff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:14px">✈️</div>`
-    })}).addTo(maps.airspace).bindPopup(`<b>${ap.n}</b><br>${ap.city}<br>ICAO: ${ap.c}`);
+      className:'', iconSize:[30,30], iconAnchor:[15,15],
+      html:`<div style="background:#0f0f2e;border:2px solid #4a9eff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:13px">✈️</div>`
+    })}).bindPopup(`<b>${ap.n}</b><br>${ap.city}<br>ICAO: ${ap.c}<br><small>🔴 &lt;5km prohibida · 🟠 5–10km restringida</small>`).addTo(_airZonesLayer);
   });
 }
 
@@ -1841,32 +1902,50 @@ function updateAirspaceMap(){
   if(!mapInited.airspace){ initAirspaceMap(); return; }
   maps.airspace.setView([S.loc.lat, S.loc.lng], 10);
 
-  // Find nearby airports
+  // Reemplazar marcador GPS anterior
+  _airGpsLayer.clearLayers();
+  L.marker([S.loc.lat, S.loc.lng], {icon:gpsIcon()})
+    .bindPopup('📍 Tu ubicación actual')
+    .addTo(_airGpsLayer);
+
+  // Calcular distancias
   const nearby = AIRPORTS.map(ap=>{
-    const dlat=(ap.lat-S.loc.lat)*111000;
-    const dlng=(ap.lng-S.loc.lng)*111000*Math.cos(S.loc.lat*Math.PI/180);
-    const dist=Math.sqrt(dlat*dlat+dlng*dlng)/1000;
-    return {...ap,dist};
-  }).filter(a=>a.dist<100).sort((a,b)=>a.dist-b.dist).slice(0,5);
+    const dlat = (ap.lat - S.loc.lat) * 111000;
+    const dlng = (ap.lng - S.loc.lng) * 111000 * Math.cos(S.loc.lat * Math.PI / 180);
+    const dist = Math.sqrt(dlat*dlat + dlng*dlng) / 1000;
+    return {...ap, dist};
+  }).filter(a=>a.dist<150).sort((a,b)=>a.dist-b.dist).slice(0,6);
 
   const el = document.getElementById('airspaceInfo');
-  if(!nearby.length){ el.innerHTML='<div class="empty">Sin aeropuertos cercanos en 100km</div>'; return; }
+  if(!nearby.length){ el.innerHTML='<div class="empty">Sin aeropuertos en 150 km</div>'; return; }
 
-  el.innerHTML = nearby.map(ap=>{
-    const zone = ap.dist<2?'🔴 Zona PROHIBIDA':ap.dist<5?'🟠 Zona RESTRINGIDA':ap.dist<10?'🔵 Zona de AVISO':'🟢 Zona libre';
-    const ok = ap.dist>=5;
+  const closest = nearby[0];
+  const alertCls = closest.dist<5  ? 'airspace-alert-red'
+                 : closest.dist<10 ? 'airspace-alert-orange'
+                 :                   'airspace-alert-green';
+  const alertMsg = closest.dist<5
+    ? `⛔ ZONA PROHIBIDA — ${closest.dist.toFixed(1)} km de ${closest.n}. NO volar sin autorización SENEAM.`
+    : closest.dist<10
+    ? `⚠️ ZONA RESTRINGIDA — ${closest.dist.toFixed(1)} km de ${closest.n}. Volar con precaución.`
+    : `✅ Zona libre — ${closest.dist.toFixed(1)} km del aeropuerto más cercano.`;
+
+  const rows = nearby.map(ap=>{
+    const col = ap.dist<5 ? 'var(--acc)' : ap.dist<10 ? 'var(--warn)' : 'var(--green)';
+    const tag = ap.dist<5 ? '🔴 Prohibida' : ap.dist<10 ? '🟠 Restringida' : '🟢 Libre';
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bdr)">
-      <span style="font-size:20px">✈️</span>
+      <span style="font-size:18px">✈️</span>
       <div style="flex:1">
-        <div style="font-size:14px;font-weight:700">${ap.n} (${ap.c})</div>
-        <div style="font-size:11px;color:var(--txt2)">${ap.dist.toFixed(1)} km · ${ap.city}</div>
+        <div style="font-size:13px;font-weight:700">${ap.n} <span style="font-size:11px;color:var(--txt2)">(${ap.c})</span></div>
+        <div style="font-size:11px;color:var(--txt2)">${ap.city}</div>
       </div>
-      <div style="font-size:11px;font-weight:700;color:${ok?'var(--green)':'var(--acc)'}">${zone}</div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:14px;font-weight:700;color:${col}">${ap.dist.toFixed(1)} km</div>
+        <div style="font-size:10px;color:${col}">${tag}</div>
+      </div>
     </div>`;
   }).join('');
 
-  // Add user location marker
-  L.marker([S.loc.lat,S.loc.lng],{icon:gpsIcon()}).addTo(maps.airspace).bindPopup('📍 Tu ubicación');
+  el.innerHTML = `<div class="${alertCls}" style="padding:10px 12px;margin-bottom:10px;font-size:13px;font-weight:700">${alertMsg}</div>${rows}`;
 }
 
 // ── SHARE MISSION ─────────────────────────────────────────────
