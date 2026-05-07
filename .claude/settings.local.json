@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Oscar Chávez A\\\\Desktop\\\\geonex-pilot-v2\" -Recurse -File)",
+      "Bash(Select-Object FullName)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\Oscar Chávez A\\\\Desktop\\\\geonex-pilot-v2\" -Recurse -File | Select-Object FullName | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\Oscar Chávez A\\\\Desktop\\\\geonex-pilot-v2\" -Recurse | ForEach-Object { $_.FullName })",
+      "Bash(python *)",
+      "Bash(dir /r \"C:\\\\Users\\\\Oscar Chávez A\\\\Desktop\\\\geonex-pilot-v2\" /s /b)"
+    ]
+  }
+}
