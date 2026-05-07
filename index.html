@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es" data-theme="dark">
 <head>
 <meta charset="UTF-8"/>
@@ -387,7 +387,7 @@ a{color:var(--acc);text-decoration:none}
 <div id="authScreen">
   <!-- Videos de fondo en loop secuencial con crossfade -->
   <div id="authBgVids">
-    <video id="bgVidA" class="auth-vid active" muted playsinline preload="auto"></video>
+    <video id="bgVidA" class="auth-vid active" muted playsinline preload="auto" loop></video>
     <video id="bgVidB" class="auth-vid"        muted playsinline preload="auto"></video>
   </div>
   <div id="authOverlay"></div>
@@ -1061,47 +1061,55 @@ function initAuthVideos(){
   const vidB = document.getElementById('bgVidB');
   if(!vidA || !vidB) return;
 
-  let idx    = 0;           // índice del video actualmente en pantalla
-  let active = vidA;        // video visible
-  let next   = vidB;        // video precargado listo para salir
+  let cur    = 0;    // índice del video visible actualmente
+  let elPlay = vidA; // elemento visible y reproduciéndose
+  let elWait = vidB; // elemento oculto precargando el siguiente
 
-  function loadNext(el, i){
-    el.src = VIDS[i];
+  // Quitar loop: JS controla la rotación; el atributo es solo fallback sin JS
+  vidA.removeAttribute('loop');
+
+  function prep(el, i){
+    el.src = VIDS[((i % VIDS.length) + VIDS.length) % VIDS.length];
     el.load();
   }
 
-  function crossfade(){
-    idx = (idx + 1) % VIDS.length;
-    // El video "next" ya tiene el src cargado; empezar a reproducirlo
-    next.currentTime = 0;
-    next.play().catch(()=>{});
-    // Fade cruzado vía clases CSS (transition: opacity 1s)
-    next.classList.add('active');
-    active.classList.remove('active');
+  function advance(){
+    cur = (cur + 1) % VIDS.length;
+
+    // Reproducir el video ya precargado en elWait
+    elWait.currentTime = 0;
+    elWait.play().catch(()=>{ setTimeout(advance, 300); });
+
+    // Crossfade vía CSS transition opacity 1s
+    elWait.classList.add('active');
+    elPlay.classList.remove('active');
+
+    // ── FIX CLAVE: pausar el video saliente para que no dispare 'ended' de nuevo ──
+    elPlay.pause();
+
     // Rotar roles
-    const tmp = active;
-    active = next;
-    next   = tmp;
-    // Precargar el video que vendrá después del siguiente
-    loadNext(next, (idx + 1) % VIDS.length);
+    const tmp = elPlay;
+    elPlay = elWait;
+    elWait = tmp;
+
+    // Precargar el que viene después del que acaba de empezar
+    prep(elWait, (cur + 1) % VIDS.length);
   }
 
-  // Arrancar: cargar primero y precargar segundo
-  loadNext(vidA, 0);
-  loadNext(vidB, 1);
+  // Cargar primero y precargar segundo simultáneamente
+  prep(vidA, 0);
+  prep(vidB, 1);
 
-  vidA.addEventListener('canplaythrough', function onReady(){
-    vidA.removeEventListener('canplaythrough', onReady);
-    vidA.play().catch(()=>{});
-  }, { once: true });
+  // Iniciar reproducción en cuanto haya datos suficientes
+  vidA.addEventListener('canplay', ()=>{ vidA.play().catch(()=>{}); }, { once: true });
 
-  // Cuando cualquier video termina, hacer crossfade al siguiente
-  vidA.addEventListener('ended', crossfade);
-  vidB.addEventListener('ended', crossfade);
+  // Al terminar cada video → avanzar al siguiente
+  vidA.addEventListener('ended', advance);
+  vidB.addEventListener('ended', advance);
 
-  // Si un video no carga, saltar al siguiente sin romperse
-  vidA.addEventListener('error', crossfade);
-  vidB.addEventListener('error', crossfade);
+  // Error en el video en reproducción → saltar al siguiente
+  vidA.addEventListener('error', ()=>{ if(elPlay === vidA) advance(); });
+  vidB.addEventListener('error', ()=>{ if(elPlay === vidB) advance(); });
 }
 
 // ── PARTICLES ─────────────────────────────────────────────────
