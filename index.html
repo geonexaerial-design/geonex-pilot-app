@@ -10,13 +10,14 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
 :root{
-  --bg0:#070a0f;--bg1:#0d1117;--bg2:#111820;--bg3:#1e2a38;
+  --bg0:#050810;--bg1:#080c14;--bg2:#0e1520;--bg3:#1a2234;
   --acc:#c9a84c;--acc2:#e8c96d;
   --blue:#4a9eff;--green:#00ff88;--red:#ff3b3b;--warn:#ff9500;
-  --txt:#e8eaf0;--txt2:#8892a0;--bdr:#1e2a38;
+  --txt:#dde3ed;--txt2:#5a6475;--bdr:#182030;
   --r8:6px;--r12:8px;--r16:10px;
-  --shadow:0 4px 24px rgba(0,0,0,.7);
-  --gold-glow:0 0 20px rgba(201,168,76,.12);
+  --shadow:0 4px 24px rgba(0,0,0,.9);
+  --gold-glow:0 4px 28px rgba(201,168,76,.07);
+  --card-border:rgba(201,168,76,.11);
 }
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg0)}::-webkit-scrollbar-thumb{background:var(--acc);border-radius:3px}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -25,54 +26,80 @@ a{color:var(--acc);text-decoration:none}
 /* ── HEADER ── */
 #hdr{
   position:fixed;top:0;left:0;right:0;z-index:900;
-  height:56px;background:var(--bg0);border-bottom:1px solid var(--acc);
-  display:flex;align-items:center;gap:10px;padding:0 14px;
+  height:56px;background:#050810;
+  border-bottom:1px solid rgba(201,168,76,.32);
+  display:flex;align-items:center;gap:12px;padding:0 16px;
+  overflow:hidden;
 }
-#menuBtn{background:none;border:none;color:var(--acc);font-size:26px;cursor:pointer;line-height:1;padding:4px 6px}
-#menuBtn:hover{color:var(--acc2)}
-.logo-svg{height:30px;flex-shrink:0}
+#hdr::after{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(201,168,76,.014) 3px,rgba(201,168,76,.014) 4px);
+}
+@keyframes scanline{0%{transform:translateY(-100%)}100%{transform:translateY(100vh)}}
+#hdr::before{
+  content:'';position:absolute;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,rgba(201,168,76,.25),transparent);
+  animation:scanline 5s linear infinite;pointer-events:none;z-index:2;
+}
+#menuBtn{background:none;border:none;color:var(--acc);font-size:26px;cursor:pointer;line-height:1;padding:4px 6px;position:relative;z-index:3;transition:color .2s,text-shadow .2s}
+#menuBtn:hover{color:var(--acc2);text-shadow:0 0 14px rgba(201,168,76,.6)}
+.logo-svg{height:28px;flex-shrink:0;position:relative;z-index:3;filter:drop-shadow(0 0 6px rgba(201,168,76,.2))}
 .hdr-name{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;color:var(--acc);letter-spacing:2px;text-transform:uppercase}
 .hdr-sub{font-size:10px;color:var(--txt2);white-space:nowrap;display:none}
 #globalDrone{
-  margin-left:auto;background:var(--bg1);border:1px solid var(--acc);
-  color:var(--txt);padding:5px 8px;border-radius:4px;font-size:12px;cursor:pointer;max-width:150px;font-family:'Inter',sans-serif;
+  background:rgba(201,168,76,.05);border:1px solid rgba(201,168,76,.25);
+  color:var(--acc);padding:5px 10px;border-radius:0;font-size:11px;cursor:pointer;max-width:145px;
+  font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+  position:relative;z-index:3;transition:border-color .2s,background .2s;
 }
+#globalDrone:focus{outline:none;border-color:var(--acc);background:rgba(201,168,76,.09)}
 /* ── SIDEBAR ── */
-#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1400}
+#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:1400;backdrop-filter:blur(3px)}
 #overlay.on{display:block}
 #sidebar{
-  position:fixed;top:0;left:-290px;width:285px;height:100vh;
-  background:var(--bg0);border-right:1px solid var(--bdr);
-  z-index:1500;transition:left .28s ease;overflow-y:auto;
+  position:fixed;top:0;left:-240px;width:224px;height:100vh;
+  background:#050810;border-right:1px solid rgba(201,168,76,.16);
+  z-index:1500;transition:left .28s cubic-bezier(.4,0,.2,1);overflow-y:auto;
   display:flex;flex-direction:column;
+  background-image:
+    linear-gradient(rgba(201,168,76,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(201,168,76,.025) 1px,transparent 1px);
+  background-size:22px 22px;
 }
 #sidebar.open{left:0}
 .sb-head{
   height:56px;display:flex;align-items:center;justify-content:space-between;
-  padding:0 16px;border-bottom:1px solid var(--bdr);flex-shrink:0;
+  padding:0 14px;border-bottom:1px solid rgba(201,168,76,.1);flex-shrink:0;
+  background:rgba(201,168,76,.03);
 }
-.sb-head span{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;color:var(--acc);letter-spacing:2px}
-.sb-close{background:none;border:none;color:var(--txt2);font-size:20px;cursor:pointer;padding:4px}
+.sb-brand{display:flex;flex-direction:column;line-height:1.1}
+.sb-brand-name{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;color:var(--acc);letter-spacing:3px;text-shadow:0 0 18px rgba(201,168,76,.3)}
+.sb-brand-sub{font-family:'Rajdhani',sans-serif;font-size:8px;color:var(--txt2);letter-spacing:2px;text-transform:uppercase;opacity:.7}
+.sb-close{background:none;border:none;color:var(--txt2);font-size:18px;cursor:pointer;padding:4px;transition:color .2s;line-height:1}
 .sb-close:hover{color:var(--acc)}
-.sb-foot{padding:14px;border-top:1px solid var(--bdr);margin-top:auto;flex-shrink:0}
+.sb-foot{padding:12px 14px;border-top:1px solid rgba(201,168,76,.1);margin-top:auto;flex-shrink:0}
+.sb-version{font-family:'Rajdhani',sans-serif;font-size:9px;color:rgba(201,168,76,.22);letter-spacing:2px;text-transform:uppercase;text-align:center;margin-top:8px}
 .nav-it{
-  display:flex;align-items:center;gap:14px;padding:13px 18px;
-  cursor:pointer;border-left:3px solid transparent;transition:all .18s;
+  display:flex;align-items:center;gap:12px;padding:10px 16px;
+  cursor:pointer;border-left:3px solid transparent;transition:all .2s;position:relative;
 }
-.nav-it:hover{background:rgba(201,168,76,.07);color:var(--acc)}
-.nav-it:hover .nav-lb{color:var(--acc)}
-.nav-it.act{background:rgba(201,168,76,.1);border-left-color:var(--acc)}
-.nav-it.act .nav-lb{color:var(--acc)}
+.nav-it:hover{background:rgba(201,168,76,.05);border-left-color:rgba(201,168,76,.3)}
+.nav-it:hover .nav-lb,.nav-it:hover .nav-ic-svg{color:var(--acc)}
+.nav-it.act{background:rgba(201,168,76,.09);border-left-color:var(--acc);box-shadow:inset 0 0 40px rgba(201,168,76,.04)}
+.nav-it.act .nav-lb{color:var(--acc);font-weight:700}
+.nav-it.act .nav-ic-svg{color:var(--acc)}
 .nav-ic{font-size:18px;width:26px;text-align:center}
-.nav-lb{font-size:13px;font-weight:500;transition:color .18s}
+.nav-ic-svg{width:17px;height:17px;color:var(--txt2);flex-shrink:0;transition:color .2s;display:block}
+.nav-lb{font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--txt2);transition:color .2s}
+.nav-div{height:1px;background:rgba(201,168,76,.08);margin:4px 12px}
 /* ── MAIN ── */
 #main{margin-top:56px;min-height:calc(100vh - 56px)}
 .sec{display:none;padding:14px;animation:fadeIn .2s ease}
 .sec.act{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 /* ── CARDS ── */
-.card{background:var(--bg1);border:1px solid var(--bdr);border-left:2px solid var(--acc);border-radius:var(--r12);padding:14px;margin-bottom:14px;box-shadow:var(--gold-glow)}
-.ctit{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:var(--acc);margin-bottom:10px;display:flex;align-items:center;gap:7px;text-transform:uppercase;letter-spacing:2px}
+.card{background:var(--bg1);border:1px solid var(--card-border);border-left:2px solid rgba(201,168,76,.5);border-radius:var(--r12);padding:14px;margin-bottom:14px;box-shadow:0 4px 24px rgba(201,168,76,.06),0 1px 0 rgba(201,168,76,.07) inset}
+.ctit{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;color:var(--acc);margin-bottom:12px;display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:3px;border-bottom:1px solid rgba(201,168,76,.1);padding-bottom:8px}
 /* ── MAPS ── */
 .map-box{width:100%;height:300px;border-radius:var(--r12);overflow:hidden;margin-bottom:14px;border:1px solid var(--bdr)}
 .map-box.tall{height:360px}
@@ -111,9 +138,16 @@ a{color:var(--acc);text-decoration:none}
 .wbar-track{height:9px;background:var(--bg3);border-radius:5px;overflow:hidden}
 .wbar-fill{height:100%;border-radius:5px;transition:width .5s ease}
 /* ── VERDICT ── */
-.verdict{padding:14px;border-radius:var(--r12);text-align:center;font-size:17px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:10px;font-family:'Rajdhani',sans-serif;letter-spacing:1px}
-.verdict.ok{background:rgba(0,255,136,.08);border:1px solid var(--green);color:var(--green)}
-.verdict.no{background:rgba(255,59,59,.1);border:1px solid var(--red);color:var(--red)}
+.verdict{padding:24px 16px 20px;border-radius:var(--r12);text-align:center;font-family:'Rajdhani',sans-serif;letter-spacing:2px;margin-bottom:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;position:relative;overflow:hidden}
+.verdict::after{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 4px,rgba(255,255,255,.011) 4px,rgba(255,255,255,.011) 5px)}
+.v-led-row{display:flex;align-items:center;gap:16px}
+.v-led-row .led{width:22px!important;height:22px!important;box-shadow:none!important}
+.v-led-ok{background:var(--green);border-radius:50%;width:22px;height:22px;animation:led-pulse 2s infinite;box-shadow:0 0 0 4px rgba(0,255,136,.15),0 0 18px rgba(0,255,136,.5)}
+.v-led-no{background:var(--red);border-radius:50%;width:22px;height:22px;animation:led-pulse 1.4s infinite;box-shadow:0 0 0 4px rgba(255,59,59,.15),0 0 18px rgba(255,59,59,.5)}
+.v-text{font-size:26px;font-weight:700;letter-spacing:3px}
+.v-reasons{font-family:'Inter',sans-serif;font-size:11px;opacity:.7;letter-spacing:.5px;font-weight:400;max-width:300px;text-align:center;line-height:1.5}
+.verdict.ok{background:linear-gradient(135deg,rgba(0,255,136,.08) 0%,rgba(0,255,136,.02) 100%);border:1px solid rgba(0,255,136,.25);color:var(--green)}
+.verdict.no{background:linear-gradient(135deg,rgba(255,59,59,.1) 0%,rgba(255,59,59,.02) 100%);border:1px solid rgba(255,59,59,.25);color:var(--red)}
 /* ── CHECKLIST ── */
 .cl-sec-hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;margin:10px 0 4px;background:rgba(201,168,76,.06);border-left:2px solid var(--acc);cursor:pointer;user-select:none;transition:background .15s}
 .cl-sec-hdr:hover{background:rgba(201,168,76,.12)}
@@ -225,8 +259,8 @@ a{color:var(--acc);text-decoration:none}
 /* ── RESPONSIVE ── */
 @media(max-width:480px){.form-grid,.cfg-grid,.bat-result-grid,.stat-grid{grid-template-columns:1fr}}
 /* ── SECTION TITLE ── */
-.sec-hdr{display:flex;align-items:center;gap:8px;margin-bottom:14px}
-.sec-hdr h2{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;text-transform:uppercase;letter-spacing:3px}
+.sec-hdr{display:flex;align-items:center;gap:10px;margin-bottom:16px;border-bottom:1px solid rgba(201,168,76,.14);padding-bottom:12px}
+.sec-hdr h2{font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;text-transform:uppercase;letter-spacing:4px;color:var(--acc)}
 /* ── SEARCH BOX ── */
 #planSearchRes div:hover{background:var(--bg2)}
 #planSearchRes{box-shadow:var(--shadow);background:var(--bg1);border:1px solid var(--acc)}
@@ -269,31 +303,43 @@ a{color:var(--acc);text-decoration:none}
 /* ── ZONES MAP ── */
 #zonasMap{height:280px}
 /* ── HUD SECTION HEADER ── */
-.sec-hdr{border-bottom:1px solid rgba(201,168,76,.18);padding-bottom:10px}
-.sec-hdr>span:first-child{width:34px;height:34px;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.25);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.sec-hdr>span:first-child{width:34px;height:34px;background:rgba(201,168,76,.07);border:1px solid rgba(201,168,76,.22);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+/* ── DRONE CARD ── */
+.drone-card{background:var(--bg1);border:1px solid var(--card-border);border-left:2px solid rgba(201,168,76,.5);border-radius:var(--r12);padding:14px;margin-bottom:14px;box-shadow:0 4px 24px rgba(201,168,76,.06)}
+.drone-card-inner{display:flex;gap:14px;align-items:flex-start}
+.drone-icon-box{font-size:38px;width:66px;height:66px;background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.18);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.drone-info{flex:1;min-width:0}
+.drone-card-name{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;color:var(--acc);letter-spacing:.5px;margin-bottom:2px}
+.drone-card-badge{font-family:'Rajdhani',sans-serif;font-size:9px;color:var(--txt2);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+.drone-specs-row{display:grid;grid-template-columns:1fr 1fr;gap:2px 10px}
+.drone-spec{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(26,34,52,.7)}
+.drone-spec-lbl{font-family:'Inter',sans-serif;font-size:10px;color:var(--txt2);text-transform:uppercase;letter-spacing:.8px}
+.drone-spec-val{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:var(--acc)}
 /* ── HUD GPS DISPLAY ── */
 .gps-hud{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--bg0);border:1px solid var(--bdr);border-left:2px solid var(--acc);border-radius:6px;padding:12px 14px;margin-top:10px}
 .gps-row{display:flex;flex-direction:column;gap:2px}
 .gps-lbl{font-family:'Rajdhani',sans-serif;font-size:9px;color:var(--txt2);text-transform:uppercase;letter-spacing:1.5px}
 .gps-val{font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:var(--acc);letter-spacing:1px}
 /* ── HUD WEATHER CELLS ── */
-.wx-hud-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
-.wx-hud-cell{background:var(--bg2);border:1px solid var(--bdr);border-radius:6px;padding:10px 4px;text-align:center;position:relative;overflow:hidden}
-.wx-hud-cell::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--bdr)}
-.wx-hud-cell.ok::after{background:var(--green)}.wx-hud-cell.no::after{background:var(--red)}
-.wx-hud-ic{font-size:16px;line-height:1}
-.wx-hud-val{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;margin:3px 0;line-height:1}
-.wx-hud-lbl{font-size:9px;color:var(--txt2);text-transform:uppercase;letter-spacing:.8px}
+.wx-hud-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.wx-hud-cell{background:var(--bg2);border:1px solid rgba(201,168,76,.1);border-radius:8px;padding:20px 10px 16px;text-align:center;position:relative;overflow:hidden;transition:border-color .2s,box-shadow .2s}
+.wx-hud-cell:hover{border-color:rgba(201,168,76,.28);box-shadow:0 0 24px rgba(201,168,76,.05)}
+.wx-hud-cell::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(26,34,52,.9)}
+.wx-hud-cell.ok::after{background:var(--green);box-shadow:0 0 12px rgba(0,255,136,.45)}
+.wx-hud-cell.no::after{background:var(--red);box-shadow:0 0 12px rgba(255,59,59,.45)}
+.wx-hud-ic{font-size:36px;line-height:1;margin-bottom:8px}
+.wx-hud-val{font-family:'Rajdhani',sans-serif;font-size:42px;font-weight:700;margin:6px 0;line-height:1}
+.wx-hud-lbl{font-family:'Inter',sans-serif;font-size:10px;color:var(--txt2);text-transform:uppercase;letter-spacing:2px;margin-top:6px}
 /* ── CONNECTION DOT ── */
-#connDot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:led-pulse 2.5s infinite;flex-shrink:0;cursor:default}
-#connDot.offline{background:var(--red);box-shadow:0 0 6px var(--red);animation:led-pulse 1s infinite}
+#connDot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:led-pulse 2.5s infinite;flex-shrink:0;cursor:default;position:relative;z-index:3}
+#connDot.offline{background:var(--red);box-shadow:0 0 8px var(--red);animation:led-pulse 1s infinite}
 /* ── HEADER BREADCRUMB ── */
-.hdr-crumb{font-family:'Rajdhani',sans-serif;font-size:11px;color:var(--txt2);letter-spacing:1px;text-transform:uppercase;display:flex;align-items:center;gap:5px;min-width:0}
-.hdr-crumb-sep{color:var(--acc);opacity:.4;flex-shrink:0}
-.hdr-crumb-sec{color:var(--acc);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hdr-crumb{font-family:'Rajdhani',sans-serif;font-size:11px;color:var(--txt2);letter-spacing:1.5px;text-transform:uppercase;display:flex;align-items:center;gap:6px;min-width:0;position:relative;z-index:3}
+.hdr-crumb-sep{color:var(--acc);opacity:.35;flex-shrink:0;font-size:13px}
+.hdr-crumb-sec{color:var(--acc);font-weight:700;font-size:19px;letter-spacing:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 0 16px rgba(201,168,76,.35)}
 /* ── SIDEBAR USER ── */
-.sb-user{display:flex;align-items:center;gap:10px;padding:12px 14px;background:rgba(201,168,76,.05);flex-shrink:0}
-.sb-avatar{width:34px;height:34px;border-radius:50%;border:1px solid var(--acc);background:rgba(201,168,76,.15);display:flex;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;color:var(--acc);flex-shrink:0;overflow:hidden}
+.sb-user{display:flex;align-items:center;gap:10px;padding:12px 14px;background:rgba(201,168,76,.04);flex-shrink:0}
+.sb-avatar{width:38px;height:38px;border-radius:50%;border:2px solid var(--acc);background:rgba(201,168,76,.1);display:flex;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;color:var(--acc);flex-shrink:0;overflow:hidden;box-shadow:0 0 14px rgba(201,168,76,.22)}
 .sb-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
 .sb-uname{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sb-uemail{font-size:10px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -365,7 +411,10 @@ a{color:var(--acc);text-decoration:none}
 <div id="overlay" onclick="closeMenu()"></div>
 <nav id="sidebar">
   <div class="sb-head">
-    <span>✈ Menú Navegación</span>
+    <div class="sb-brand">
+      <span class="sb-brand-name">GEONEX</span>
+      <span class="sb-brand-sub">Flight Operations</span>
+    </div>
     <button class="sb-close" onclick="closeMenu()">✕</button>
   </div>
   <div id="navItems"></div>
@@ -377,7 +426,8 @@ a{color:var(--acc);text-decoration:none}
     </div>
   </div>
   <div class="sb-foot">
-    <button class="btn btn-d btn-full" style="font-size:12px;border-radius:0;font-family:'Rajdhani',sans-serif;letter-spacing:1px" onclick="doSignOut()">🚪 CERRAR SESIÓN</button>
+    <button class="btn btn-d btn-full" style="font-size:11px;border-radius:0;font-family:'Rajdhani',sans-serif;letter-spacing:1.5px" onclick="doSignOut()">🚪 CERRAR SESIÓN</button>
+    <div class="sb-version">GEONEX AERIAL v2.0</div>
   </div>
 </nav>
 
@@ -386,7 +436,8 @@ a{color:var(--acc);text-decoration:none}
 
 <!-- ① INICIO -->
 <section id="sec-inicio" class="sec act">
-  <div class="sec-hdr"><span style="font-size:22px">🏠</span><h2>Inicio</h2></div>
+  <div class="sec-hdr"><span style="font-size:20px">⌖</span><h2>Inicio</h2></div>
+  <div id="droneCard"></div>
   <div class="map-wrap">
     <div id="inicioMap" class="map-box"></div>
     <div id="inicioLoader" class="map-loader"><span class="spin-ic">🔄</span><span>Cargando mapa…</span></div>
@@ -867,19 +918,33 @@ const DRONES = {
 
 // ── NAV ITEMS ──────────────────────────────────────────────────
 const NAV = [
-  {id:'inicio',    ic:'🏠', lb:'Inicio'},
-  {id:'checklist', ic:'✅', lb:'Checklist'},
-  {id:'planificador',ic:'🗺️',lb:'Planificador'},
-  {id:'bitacora',  ic:'📋', lb:'Bitácora'},
-  {id:'pronostico',ic:'🌤️', lb:'Pronóstico'},
-  {id:'zonas',     ic:'📍', lb:'Zonas Guardadas'},
-  {id:'estadisticas',ic:'📊',lb:'Estadísticas'},
-  {id:'bateria',   ic:'🔋', lb:'Calculadora Batería'},
-  {id:'espacio',   ic:'✈️', lb:'Espacio Aéreo'},
-  {id:'gsd',       ic:'📷', lb:'Calculadora GSD'},
-  {id:'compartir', ic:'📤', lb:'Compartir Misión'},
-  {id:'oscuro',    ic:'🌙', lb:'Modo Oscuro'},
+  {id:'inicio',       lb:'Inicio'},
+  {id:'checklist',    lb:'Checklist'},
+  {id:'planificador', lb:'Planificador'},
+  {id:'bitacora',     lb:'Bitácora'},
+  {id:'pronostico',   lb:'Pronóstico'},
+  {id:'zonas',        lb:'Zonas'},
+  {id:'estadisticas', lb:'Estadísticas'},
+  {id:'bateria',      lb:'Batería'},
+  {id:'espacio',      lb:'Espacio Aéreo'},
+  {id:'gsd',          lb:'Calc. GSD'},
+  {id:'compartir',    lb:'Compartir'},
+  {id:'oscuro',       lb:'Ajustes'},
 ];
+const NAV_ICONS = {
+  inicio:`<svg class="nav-ic-svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="10" cy="10" r="7"/><line x1="10" y1="2" x2="10" y2="5.5"/><line x1="10" y1="14.5" x2="10" y2="18"/><line x1="2" y1="10" x2="5.5" y2="10"/><line x1="14.5" y1="10" x2="18" y2="10"/><circle cx="10" cy="10" r="2" fill="currentColor" stroke="none"/></svg>`,
+  checklist:`<svg class="nav-ic-svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="12" height="16" rx="1.5"/><polyline points="7.5,10.5 9.5,12.5 13,9"/><line x1="7" y1="6.5" x2="13" y2="6.5"/><line x1="7" y1="14.5" x2="11" y2="14.5"/></svg>`,
+  planificador:`<svg class="nav-ic-svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2 18,6 18,15 10,18 2,15 2,6"/><circle cx="10" cy="10" r="2.5"/><line x1="10" y1="2" x2="10" y2="7.5"/><line x1="10" y1="12.5" x2="10" y2="18"/></svg>`,
+  bitacora:`<svg class="nav-ic-svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2h9a2 2 0 012 2v12a2 2 0 01-2 2H4V2z"/><path d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2"/><line x1="7" y1="7" x2="12" y2="7"/><line x1="7" y1="10" x2="12" y2="10"/><line x1="7" y1="13" x2="10" y2="13"/></svg>`,
+  pronostico:`<svg class="nav-ic-svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5.5 13a3.5 3.5 0 01-.5-6.96A5 5 0 0114 7.5a3 3 0 011 5.8"/><path d="M7.5 16.5h6M5.5 19h4"/></svg>`,
+  zonas:`<svg class="nav-ic-svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2C6.7 2 4 4.7 4 8c0 4.8 6 10 6 10s6-5.2 6-10c0-3.3-2.7-6-6-6z"/><circle cx="10" cy="8" r="2"/></svg>`,
+  estadisticas:`<svg class="nav-ic-svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="3" height="6" rx=".5"/><rect x="8.5" y="7" width="3" height="10" rx=".5"/><rect x="14" y="3" width="3" height="14" rx=".5"/><line x1="1" y1="18" x2="19" y2="18"/></svg>`,
+  bateria:`<svg class="nav-ic-svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="6" width="15" height="8" rx="2"/><path d="M16 9v2" stroke-width="2.5"/><line x1="4" y1="10" x2="10" y2="10"/><line x1="7" y1="7" x2="7" y2="13"/></svg>`,
+  espacio:`<svg class="nav-ic-svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15l7-10 7 10"/><path d="M5.5 15l4.5-5 4.5 5"/><line x1="6" y1="18" x2="14" y2="18"/></svg>`,
+  gsd:`<svg class="nav-ic-svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="16" height="11" rx="2"/><circle cx="10" cy="12" r="3"/><path d="M7 6V5a1 1 0 011-1h4a1 1 0 011 1v1"/><circle cx="15.5" cy="8.5" r=".75" fill="currentColor" stroke="none"/></svg>`,
+  compartir:`<svg class="nav-ic-svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v12M6 6l4-4 4 4"/><path d="M5 10H4a2 2 0 00-2 2v5a2 2 0 002 2h12a2 2 0 002-2v-5a2 2 0 00-2-2h-1"/></svg>`,
+  oscuro:`<svg class="nav-ic-svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="10" cy="10" r="3"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="10" y1="16" x2="10" y2="18"/><line x1="2" y1="10" x2="4" y2="10"/><line x1="16" y1="10" x2="18" y2="10"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="14.36" y1="14.36" x2="15.78" y2="15.78"/><line x1="4.22" y1="15.78" x2="5.64" y2="14.36"/><line x1="14.36" y1="5.64" x2="15.78" y2="4.22"/></svg>`,
+};
 
 // ── APP STATE ──────────────────────────────────────────────────
 const S = {
@@ -921,18 +986,32 @@ document.addEventListener('DOMContentLoaded', ()=>{
   setToday();
   buildMissionConfig();
   showSec('inicio');
+  renderDroneCard();
   loadFromFB();
 });
 
 // ── NAV ────────────────────────────────────────────────────────
 function buildNav(){
   const el = document.getElementById('navItems');
-  el.innerHTML = NAV.map(n=>`
-    <div class="nav-it${n.id===S.sec?' act':''}" data-id="${n.id}" onclick="showSec('${n.id}');closeMenu()">
-      <span class="nav-ic">${n.ic}</span>
-      <span class="nav-lb">${n.lb}</span>
-    </div>
-  `).join('');
+  const groups = [
+    ['inicio','checklist','planificador','bitacora'],
+    ['pronostico','zonas','estadisticas'],
+    ['bateria','espacio','gsd'],
+    ['compartir','oscuro'],
+  ];
+  let html = '';
+  groups.forEach((grp,gi)=>{
+    if(gi>0) html += '<div class="nav-div"></div>';
+    grp.forEach(id=>{
+      const n = NAV.find(x=>x.id===id);
+      if(!n) return;
+      html += `<div class="nav-it${n.id===S.sec?' act':''}" data-id="${n.id}" onclick="showSec('${n.id}');closeMenu()">
+        ${NAV_ICONS[n.id]||''}
+        <span class="nav-lb">${n.lb}</span>
+      </div>`;
+    });
+  });
+  el.innerHTML = html;
 }
 
 const SEC_NAMES = {
@@ -952,7 +1031,7 @@ function showSec(id){
   const secEl = document.getElementById('hdrSection');
   if(secEl) secEl.textContent = SEC_NAMES[id] || id.toUpperCase();
   // lazy map init
-  if(id==='inicio' && !mapInited.inicio) setTimeout(initInicioMap, 100);
+  if(id==='inicio'){ if(!mapInited.inicio) setTimeout(initInicioMap,100); renderDroneCard(); }
   if(id==='planificador' && !mapInited.plan) setTimeout(initPlanMap, 100);
   if(id==='espacio' && !mapInited.airspace) setTimeout(initAirspaceMap, 100);
   if(id==='zonas' && !mapInited.zonas) setTimeout(initZonasMap, 100);
@@ -990,6 +1069,31 @@ function setDrone(id){
   if(S.wx) renderWeather(S.wx);
   calcGSD();
   renderForecast();
+  renderDroneCard();
+}
+
+function renderDroneCard(){
+  const el = document.getElementById('droneCard');
+  if(!el) return;
+  const d = DRONES[S.drone];
+  el.innerHTML = `
+    <div class="drone-card">
+      <div class="ctit">✈ Aeronave Activa</div>
+      <div class="drone-card-inner">
+        <div class="drone-icon-box">${d.icon||'✈'}</div>
+        <div class="drone-info">
+          <div class="drone-card-name">${d.name}</div>
+          <div class="drone-card-badge">${d.highlight?'⭐ DESTACADO · ':''} SELECCIONADA</div>
+          <div class="drone-specs-row">
+            <div class="drone-spec"><span class="drone-spec-lbl">Vuelo</span><span class="drone-spec-val">${d.flightTime} min</span></div>
+            <div class="drone-spec"><span class="drone-spec-lbl">Viento</span><span class="drone-spec-val">${d.maxWind} m/s</span></div>
+            <div class="drone-spec"><span class="drone-spec-lbl">Sensor</span><span class="drone-spec-val">${d.sensor||'—'}</span></div>
+            <div class="drone-spec"><span class="drone-spec-lbl">Resoluc.</span><span class="drone-spec-val">${d.mp||'—'} MP</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 // ── GPS & WEATHER ──────────────────────────────────────────────
@@ -1072,36 +1176,36 @@ function renderWeather(data){
     <div class="wx-hud-grid">
       <div class="wx-hud-cell${tempOk?' ok':' no'}">
         <div class="wx-hud-ic">🌡️</div>
-        <div class="wx-hud-val" style="color:${barColor(tempOk)}">${t.toFixed(1)}°C</div>
-        <div class="wx-hud-lbl">Temperatura</div>
+        <div class="wx-hud-val" style="color:${barColor(tempOk)}">${t.toFixed(1)}</div>
+        <div class="wx-hud-lbl">°C · Temperatura</div>
       </div>
       <div class="wx-hud-cell${windOk?' ok':' no'}">
         <div class="wx-hud-ic">💨</div>
         <div class="wx-hud-val" style="color:${barColor(windOk)}">${w.toFixed(1)}</div>
-        <div class="wx-hud-lbl">m/s Viento</div>
+        <div class="wx-hud-lbl">m/s · Viento</div>
       </div>
       <div class="wx-hud-cell${gustsOk?' ok':' no'}">
         <div class="wx-hud-ic">🌬️</div>
         <div class="wx-hud-val" style="color:${barColor(gustsOk)}">${g.toFixed(1)}</div>
-        <div class="wx-hud-lbl">m/s Ráfagas</div>
+        <div class="wx-hud-lbl">m/s · Ráfagas</div>
       </div>
       <div class="wx-hud-cell ok">
         <div class="wx-hud-ic">💧</div>
-        <div class="wx-hud-val">${hum}%</div>
-        <div class="wx-hud-lbl">Humedad</div>
+        <div class="wx-hud-val" style="color:var(--acc)">${hum}</div>
+        <div class="wx-hud-lbl">% · Humedad</div>
       </div>
     </div>
-    <div style="font-size:12px;color:var(--txt2);margin-bottom:10px;text-align:center;font-family:'Rajdhani',sans-serif;letter-spacing:1px">${desc}</div>
+    <div style="font-family:'Rajdhani',sans-serif;font-size:11px;color:var(--txt2);letter-spacing:2px;text-transform:uppercase;text-align:center;margin-bottom:12px">${desc}</div>
     <div class="wbar-wrap">
-      <div class="wbar-row"><span>VIENTO <span style="font-size:10px;opacity:.6">(lím. ${drone.maxWind} m/s)</span></span><span style="color:${barColor(windOk)}">${w.toFixed(1)} m/s ${windOk?'✓':'✗'}</span></div>
+      <div class="wbar-row"><span>VIENTO <span style="opacity:.5">(lím. ${drone.maxWind} m/s)</span></span><span style="color:${barColor(windOk)};font-family:'Rajdhani',sans-serif;font-size:14px">${w.toFixed(1)} m/s</span></div>
       <div class="wbar-track"><div class="wbar-fill" style="width:${windPct}%;background:${barColor(windOk)}"></div></div>
     </div>
     <div class="wbar-wrap">
-      <div class="wbar-row"><span>RÁFAGAS <span style="font-size:10px;opacity:.6">(lím. ${drone.maxGusts} m/s)</span></span><span style="color:${barColor(gustsOk)}">${g.toFixed(1)} m/s ${gustsOk?'✓':'✗'}</span></div>
+      <div class="wbar-row"><span>RÁFAGAS <span style="opacity:.5">(lím. ${drone.maxGusts} m/s)</span></span><span style="color:${barColor(gustsOk)};font-family:'Rajdhani',sans-serif;font-size:14px">${g.toFixed(1)} m/s</span></div>
       <div class="wbar-track"><div class="wbar-fill" style="width:${gustPct}%;background:${barColor(gustsOk)}"></div></div>
     </div>
     <div class="wbar-wrap">
-      <div class="wbar-row"><span>TEMPERATURA <span style="font-size:10px;opacity:.6">(${drone.minTemp}°–${drone.maxTemp}°C)</span></span><span style="color:${barColor(tempOk)}">${t.toFixed(1)}°C ${tempOk?'✓':'✗'}</span></div>
+      <div class="wbar-row"><span>TEMPERATURA <span style="opacity:.5">(${drone.minTemp}°–${drone.maxTemp}°C)</span></span><span style="color:${barColor(tempOk)};font-family:'Rajdhani',sans-serif;font-size:14px">${t.toFixed(1)}°C</span></div>
       <div class="wbar-track"><div class="wbar-fill" style="width:${tempPct}%;background:${barColor(tempOk)}"></div></div>
     </div>
   `;
@@ -1110,15 +1214,21 @@ function renderWeather(data){
   vEl.style.display = 'flex';
   if(apto){
     vEl.className = 'verdict ok';
-    vEl.innerHTML = '<span class="led led-ok" style="width:14px;height:14px"></span> CONDICIONES APTAS PARA VOLAR';
+    vEl.innerHTML = `
+      <div class="v-led-row"><div class="v-led-ok"></div><div class="v-text">APTO PARA VOLAR</div></div>
+      <div class="v-reasons">${desc} · Condiciones dentro de límites operacionales</div>
+    `;
   } else {
     vEl.className = 'verdict no';
     const reasons = [];
     if(!windOk)  reasons.push(`Viento ${w.toFixed(1)} > ${drone.maxWind} m/s`);
     if(!gustsOk) reasons.push(`Ráfagas ${g.toFixed(1)} > ${drone.maxGusts} m/s`);
     if(!tempOk)  reasons.push(`Temperatura fuera de rango`);
-    if(!wxFly)   reasons.push(`Condición climática adversa`);
-    vEl.innerHTML = `<span class="led led-no" style="width:14px;height:14px"></span> NO APTO — ${reasons.join(' · ')}`;
+    if(!wxFly)   reasons.push(`Condición adversa`);
+    vEl.innerHTML = `
+      <div class="v-led-row"><div class="v-led-no"></div><div class="v-text">NO APTO</div></div>
+      <div class="v-reasons">${reasons.join(' · ')}</div>
+    `;
   }
 }
 
