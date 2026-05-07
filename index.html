@@ -268,12 +268,22 @@ a{color:var(--acc);text-decoration:none}
 #planSearchRes{box-shadow:var(--shadow);background:var(--bg1);border:1px solid var(--acc)}
 /* ── AUTH SCREEN ── */
 #authScreen{
-  position:fixed;inset:0;z-index:9000;background:var(--bg0);
+  position:fixed;inset:0;z-index:9000;background:#000;
   display:flex;align-items:center;justify-content:center;overflow:hidden;
 }
-#particlesCanvas{position:absolute;inset:0;z-index:0;pointer-events:none}
+/* Contenedor de videos de fondo */
+#authBgVids{position:absolute;inset:0;z-index:0;overflow:hidden}
+.auth-vid{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;opacity:0;transition:opacity 1s ease;pointer-events:none;
+}
+.auth-vid.active{opacity:1}
+/* Overlay oscuro sobre el video */
+#authOverlay{position:absolute;inset:0;z-index:1;background:rgba(0,0,0,.6);pointer-events:none}
+/* Partículas y formulario encima del overlay */
+#particlesCanvas{position:absolute;inset:0;z-index:2;pointer-events:none}
 .auth-box{
-  position:relative;z-index:1;width:100%;max-width:380px;padding:0 20px;
+  position:relative;z-index:3;width:100%;max-width:380px;padding:0 20px;
   display:flex;flex-direction:column;align-items:center;gap:12px;
 }
 .auth-logo{height:64px;object-fit:contain}
@@ -375,6 +385,12 @@ a{color:var(--acc);text-decoration:none}
 
 <!-- AUTH SCREEN -->
 <div id="authScreen">
+  <!-- Videos de fondo en loop secuencial con crossfade -->
+  <div id="authBgVids">
+    <video id="bgVidA" class="auth-vid active" muted playsinline preload="auto"></video>
+    <video id="bgVidB" class="auth-vid"        muted playsinline preload="auto"></video>
+  </div>
+  <div id="authOverlay"></div>
   <canvas id="particlesCanvas"></canvas>
   <!-- LOGIN -->
   <div id="loginBox" class="auth-box">
@@ -1033,6 +1049,61 @@ function initConnection(){
   upd();
 }
 
+// ── AUTH BACKGROUND VIDEOS ────────────────────────────────────
+function initAuthVideos(){
+  const VIDS = [
+    'videos/inspeccion.mp4',
+    'videos/agricultura_2.mp4',
+    'videos/topografia.mp4',
+    'videos/drone.mp4'
+  ];
+  const vidA = document.getElementById('bgVidA');
+  const vidB = document.getElementById('bgVidB');
+  if(!vidA || !vidB) return;
+
+  let idx    = 0;           // índice del video actualmente en pantalla
+  let active = vidA;        // video visible
+  let next   = vidB;        // video precargado listo para salir
+
+  function loadNext(el, i){
+    el.src = VIDS[i];
+    el.load();
+  }
+
+  function crossfade(){
+    idx = (idx + 1) % VIDS.length;
+    // El video "next" ya tiene el src cargado; empezar a reproducirlo
+    next.currentTime = 0;
+    next.play().catch(()=>{});
+    // Fade cruzado vía clases CSS (transition: opacity 1s)
+    next.classList.add('active');
+    active.classList.remove('active');
+    // Rotar roles
+    const tmp = active;
+    active = next;
+    next   = tmp;
+    // Precargar el video que vendrá después del siguiente
+    loadNext(next, (idx + 1) % VIDS.length);
+  }
+
+  // Arrancar: cargar primero y precargar segundo
+  loadNext(vidA, 0);
+  loadNext(vidB, 1);
+
+  vidA.addEventListener('canplaythrough', function onReady(){
+    vidA.removeEventListener('canplaythrough', onReady);
+    vidA.play().catch(()=>{});
+  }, { once: true });
+
+  // Cuando cualquier video termina, hacer crossfade al siguiente
+  vidA.addEventListener('ended', crossfade);
+  vidB.addEventListener('ended', crossfade);
+
+  // Si un video no carga, saltar al siguiente sin romperse
+  vidA.addEventListener('error', crossfade);
+  vidB.addEventListener('error', crossfade);
+}
+
 // ── PARTICLES ─────────────────────────────────────────────────
 function initParticles(){
   const canvas = document.getElementById('particlesCanvas');
@@ -1172,6 +1243,7 @@ let mapInited = { inicio:false, plan:false, airspace:false, zonas:false };
 document.addEventListener('DOMContentLoaded', ()=>{
   initFB();
   initAuth();
+  initAuthVideos();
   initConnection();
   initParticles();
   buildNav();
