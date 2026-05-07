@@ -109,8 +109,8 @@ a{color:var(--acc);text-decoration:none}
 .map-loader.hidden{opacity:0}
 .map-loader span{font-size:13px;color:var(--txt2)}
 .map-reload-btn{position:absolute;top:8px;right:8px;z-index:801;background:var(--bg1);border:1px solid var(--acc);color:var(--acc);border-radius:4px;padding:5px 9px;font-size:15px;cursor:pointer;line-height:1;box-shadow:var(--shadow)}
-.map-zoom-btn{background:var(--bg1);border:1px solid rgba(201,168,76,.4);color:var(--acc);width:30px;height:30px;font-size:20px;font-weight:700;cursor:pointer;border-radius:4px;display:flex;align-items:center;justify-content:center;line-height:1;box-shadow:var(--shadow);transition:background .15s}
-.map-zoom-btn:hover{background:rgba(201,168,76,.12);border-color:var(--acc)}
+.map-zoom-btn{background:rgba(8,12,20,.88);border:1px solid rgba(201,168,76,.45);color:var(--acc);width:38px;height:38px;font-size:24px;font-weight:700;cursor:pointer;border-radius:4px;display:flex;align-items:center;justify-content:center;line-height:1;box-shadow:0 2px 12px rgba(0,0,0,.6);transition:background .15s,border-color .15s;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+.map-zoom-btn:hover,.map-zoom-btn:active{background:rgba(201,168,76,.15);border-color:var(--acc)}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spin-ic{font-size:22px;display:inline-block;animation:spin 1.1s linear infinite}
 /* ── AIRSPACE ALERTS ── */
@@ -490,9 +490,9 @@ a{color:var(--acc);text-decoration:none}
   <div class="map-wrap">
     <div id="planMap" class="map-box tall"></div>
     <div id="planLoader" class="map-loader"><span class="spin-ic">🔄</span><span>Cargando mapa…</span></div>
-    <div style="position:absolute;top:8px;left:8px;z-index:801;display:flex;flex-direction:column;gap:3px">
-      <button class="map-zoom-btn" onclick="maps.plan&&maps.plan.zoomIn()" title="Acercar">+</button>
-      <button class="map-zoom-btn" onclick="maps.plan&&maps.plan.zoomOut()" title="Alejar">−</button>
+    <div style="position:absolute;top:10px;left:10px;z-index:801;display:flex;flex-direction:column;gap:4px">
+      <button class="map-zoom-btn" ontouchstart="maps.plan&&maps.plan.zoomIn();return false" onclick="maps.plan&&maps.plan.zoomIn()" title="Acercar (+)">+</button>
+      <button class="map-zoom-btn" ontouchstart="maps.plan&&maps.plan.zoomOut();return false" onclick="maps.plan&&maps.plan.zoomOut()" title="Alejar (−)">−</button>
     </div>
     <button class="map-reload-btn" onclick="reloadMapTiles('plan')" title="Recargar mapa">🔄</button>
   </div>
@@ -1313,12 +1313,22 @@ function initPlanMap(){
   if(mapInited.plan) return;
   mapInited.plan = true;
   const center = S.loc ? [S.loc.lat, S.loc.lng] : [24.8, -107.4];
-  maps.plan = L.map('planMap', {attributionControl:false, zoomControl:false}).setView(center, S.loc?16:7);
-  const tiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
-    attribution:'Esri', maxZoom:18, keepBuffer:1, updateWhenZooming:false
-  }).addTo(maps.plan);
-  tiles.on('loading', ()=>showMapLoader('plan'));
-  tiles.on('load',    ()=>hideMapLoader('plan'));
+  maps.plan = L.map('planMap', {
+    attributionControl: false,
+    zoomControl: false,
+    maxZoom: 22,
+    // Ensure pinch-to-zoom works on touch devices
+    touchZoom: true,
+    bounceAtZoomLimits: false,
+  }).setView(center, S.loc ? 17 : 7);
+
+  // Esri World Imagery — nativeZoom 19, Leaflet upscales to 22
+  const tiles = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    { attribution:'Esri', maxNativeZoom:19, maxZoom:22, keepBuffer:2, updateWhenZooming:false }
+  ).addTo(maps.plan);
+  tiles.on('loading',  ()=>showMapLoader('plan'));
+  tiles.on('load',     ()=>hideMapLoader('plan'));
   tiles.on('tileerror',()=>hideMapLoader('plan'));
   maps.plan.on('click', onPlanClick);
 }
