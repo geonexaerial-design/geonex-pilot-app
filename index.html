@@ -1540,6 +1540,24 @@ function buildMissionConfig(){
   }).join('');
 }
 
+// ── WAYPOINT VALIDATION ────────────────────────────────────────
+function mDist(a, b){
+  const dlat = (b.lat - a.lat) * 111000;
+  const dlng = (b.lng - a.lng) * 111000 * Math.cos(a.lat * Math.PI / 180);
+  return Math.sqrt(dlat*dlat + dlng*dlng);
+}
+
+function cleanWaypoints(wps, minDist = 0.5){
+  if(!wps.length) return [];
+  const clean = [wps[0]];
+  for(let i = 1; i < wps.length; i++){
+    if(mDist(clean[clean.length-1], wps[i]) >= minDist){
+      clean.push(wps[i]);
+    }
+  }
+  return clean;
+}
+
 // ── SERPENTINE WAYPOINTS ───────────────────────────────────────
 function generateMission(){
   let pts = [];
@@ -1560,15 +1578,23 @@ function generateMission(){
     return;
   }
 
-  const wps = computeSerpentine(pts, S.msnCfg);
+  const rawWps = computeSerpentine(pts, S.msnCfg);
 
-  // remove old generated markers
+  // ── VALIDATION: remove duplicates and near-duplicates (<0.5m) ──
+  const wps = cleanWaypoints(rawWps);
+  const removed = rawWps.length - wps.length;
+  if(!wps.length){ toast('El área es demasiado pequeña para la distancia de pasada','warn'); return; }
+
+  // Remove old generated markers AND manual waypoint markers to avoid overlap
   S.generatedWPs.forEach(w=>{ if(w._mk) maps.plan.removeLayer(w._mk); });
+  S.wpMarkers.forEach(w=>maps.plan.removeLayer(w.marker));
+  S.wpMarkers = [];
   if(S.wpLine) maps.plan.removeLayer(S.wpLine);
+  S.wpLine = null;
 
   S.generatedWPs = wps;
 
-  // draw markers
+  // Draw markers — re-numbered 1..N consecutively after dedup
   wps.forEach((wp,i)=>{
     wp._mk = L.marker([wp.lat,wp.lng],{icon:wpIcon(i+1,'#4a9eff')}).addTo(maps.plan).bindPopup(`WP ${i+1}`);
   });
@@ -1602,9 +1628,10 @@ function generateMission(){
     <div style="margin-top:8px;font-size:11px;color:var(--txt2);text-align:center;font-family:'Rajdhani',sans-serif;letter-spacing:.5px">
       ÁREA ${(area/10000).toFixed(2)} ha &nbsp;·&nbsp; ALT ${S.msnCfg.altitude}m &nbsp;·&nbsp; VEL ${S.msnCfg.speed}m/s
     </div>
+    ${removed>0?`<div style="margin-top:6px;font-size:11px;color:var(--warn);text-align:center;font-family:'Rajdhani',sans-serif;letter-spacing:.5px">⚠ ${removed} punto${removed>1?'s':''} duplicado${removed>1?'s':''} eliminado${removed>1?'s':''} · Ruta validada</div>`:''}
   `;
 
-  toast(`Misión generada: ${wps.length} waypoints ✓`,'ok');
+  toast(`Misión generada: ${wps.length} waypoints${removed>0?' ('+removed+' duplicados eliminados)':''}  ✓`,'ok');
 }
 
 function computeSerpentine(polygon, cfg){
@@ -1663,7 +1690,9 @@ function hIntersect(poly, y){
       xs.push(a.lng+t*(b.lng-a.lng));
     }
   }
-  return xs.sort((a,b)=>a-b);
+  xs.sort((a,b)=>a-b);
+  // Remove floating-point duplicates (vertex-on-scanline produces twin hits)
+  return xs.filter((v,i)=>i===0||Math.abs(v-xs[i-1])>1e-10);
 }
 
 function vIntersect(poly, x){
@@ -1676,7 +1705,8 @@ function vIntersect(poly, x){
       ys.push(a.lat+t*(b.lat-a.lat));
     }
   }
-  return ys.sort((a,b)=>a-b);
+  ys.sort((a,b)=>a-b);
+  return ys.filter((v,i)=>i===0||Math.abs(v-ys[i-1])>1e-10);
 }
 
 function totalDist(wps){
@@ -1706,6 +1736,12 @@ function polygonArea(poly){
 // ── KMZ ───────────────────────────────────────────────────────
 async function downloadKMZ(){
   if(!S.generatedWPs.length){ toast('Genera la misión primero','warn'); return; }
+  // Final safety validation before export
+  const safeWPs = cleanWaypoints(S.generatedWPs);
+  if(safeWPs.length !== S.generatedWPs.length){
+    toast(`KMZ: ${S.generatedWPs.length - safeWPs.length} duplicado(s) adicional(es) eliminado(s)`, 'warn');
+    S.generatedWPs = safeWPs;
+  }
   const d = DRONES[S.drone];
   const c = S.msnCfg;
   let placemarks = S.generatedWPs.map((wp,i)=>`
