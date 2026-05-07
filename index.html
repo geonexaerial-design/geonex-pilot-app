@@ -109,6 +109,8 @@ a{color:var(--acc);text-decoration:none}
 .map-loader.hidden{opacity:0}
 .map-loader span{font-size:13px;color:var(--txt2)}
 .map-reload-btn{position:absolute;top:8px;right:8px;z-index:801;background:var(--bg1);border:1px solid var(--acc);color:var(--acc);border-radius:4px;padding:5px 9px;font-size:15px;cursor:pointer;line-height:1;box-shadow:var(--shadow)}
+.map-zoom-btn{background:var(--bg1);border:1px solid rgba(201,168,76,.4);color:var(--acc);width:30px;height:30px;font-size:20px;font-weight:700;cursor:pointer;border-radius:4px;display:flex;align-items:center;justify-content:center;line-height:1;box-shadow:var(--shadow);transition:background .15s}
+.map-zoom-btn:hover{background:rgba(201,168,76,.12);border-color:var(--acc)}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spin-ic{font-size:22px;display:inline-block;animation:spin 1.1s linear infinite}
 /* ── AIRSPACE ALERTS ── */
@@ -488,6 +490,10 @@ a{color:var(--acc);text-decoration:none}
   <div class="map-wrap">
     <div id="planMap" class="map-box tall"></div>
     <div id="planLoader" class="map-loader"><span class="spin-ic">🔄</span><span>Cargando mapa…</span></div>
+    <div style="position:absolute;top:8px;left:8px;z-index:801;display:flex;flex-direction:column;gap:3px">
+      <button class="map-zoom-btn" onclick="maps.plan&&maps.plan.zoomIn()" title="Acercar">+</button>
+      <button class="map-zoom-btn" onclick="maps.plan&&maps.plan.zoomOut()" title="Alejar">−</button>
+    </div>
     <button class="map-reload-btn" onclick="reloadMapTiles('plan')" title="Recargar mapa">🔄</button>
   </div>
   <div class="card">
@@ -1032,8 +1038,14 @@ function showSec(id){
   if(secEl) secEl.textContent = SEC_NAMES[id] || id.toUpperCase();
   // lazy map init
   if(id==='inicio'){ if(!mapInited.inicio) setTimeout(initInicioMap,100); renderDroneCard(); }
-  if(id==='planificador' && !mapInited.plan) setTimeout(initPlanMap, 100);
-  if(id==='espacio' && !mapInited.airspace) setTimeout(initAirspaceMap, 100);
+  if(id==='planificador'){
+    if(!mapInited.plan) setTimeout(initPlanMap, 150);
+    else setTimeout(()=>{ if(maps.plan) maps.plan.invalidateSize(); }, 100);
+  }
+  if(id==='espacio'){
+    if(!mapInited.airspace) setTimeout(initAirspaceMap, 150);
+    else setTimeout(()=>{ if(maps.airspace) maps.airspace.invalidateSize(); }, 100);
+  }
   if(id==='zonas' && !mapInited.zonas) setTimeout(initZonasMap, 100);
   if(id==='checklist') buildChecklist();
   if(id==='estadisticas') buildCharts();
@@ -1301,7 +1313,7 @@ function initPlanMap(){
   if(mapInited.plan) return;
   mapInited.plan = true;
   const center = S.loc ? [S.loc.lat, S.loc.lng] : [24.8, -107.4];
-  maps.plan = L.map('planMap', {attributionControl:false}).setView(center, S.loc?14:6);
+  maps.plan = L.map('planMap', {attributionControl:false, zoomControl:false}).setView(center, S.loc?16:7);
   const tiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
     attribution:'Esri', maxZoom:18, keepBuffer:1, updateWhenZooming:false
   }).addTo(maps.plan);
@@ -1316,7 +1328,23 @@ function planCenterGPS(){
   if(!S.loc){ toast('Primero obtén tu GPS en la sección Inicio','warn'); return; }
   if(!maps.plan){ toast('El mapa está cargando…','warn'); return; }
   maps.plan.setView([S.loc.lat, S.loc.lng], 16);
-  L.marker([S.loc.lat, S.loc.lng],{icon:gpsIcon()}).addTo(maps.plan).bindPopup('📍 Tu ubicación').openPopup();
+  // Remove previous location indicator
+  if(_planLocMarker){ maps.plan.removeLayer(_planLocMarker); _planLocMarker=null; }
+  // Non-interactive pulsing blue dot (no interference with waypoints)
+  _planLocMarker = L.marker([S.loc.lat, S.loc.lng], {
+    icon: L.divIcon({
+      className:'',
+      iconSize:[24,24],
+      iconAnchor:[12,12],
+      html:`<div style="position:relative;width:24px;height:24px;pointer-events:none">
+        <div style="position:absolute;inset:0;background:rgba(74,158,255,.22);border-radius:50%;animation:led-pulse 2s infinite"></div>
+        <div style="position:absolute;inset:5px;background:#4a9eff;border-radius:50%;border:2px solid #fff;box-shadow:0 0 8px rgba(74,158,255,.7)"></div>
+      </div>`
+    }),
+    interactive:false,
+    keyboard:false,
+    zIndexOffset:-1000,
+  }).addTo(maps.plan);
   toast('Mapa centrado en tu ubicación ✓','ok');
 }
 
@@ -2321,12 +2349,16 @@ const AIRPORTS = [
 
 let _airZonesLayer = null;
 let _airGpsLayer   = null;
+let _planLocMarker = null;
 
 function initAirspaceMap(){
   if(mapInited.airspace) return;
   mapInited.airspace = true;
   const center = S.loc ? [S.loc.lat, S.loc.lng] : [19.85, -101.03];
   const zoom   = S.loc ? 10 : 6;
+  // Ensure the container is visible before Leaflet measures it
+  const airEl = document.getElementById('airspaceMap');
+  if(airEl && !airEl.offsetHeight){ airEl.style.height='360px'; }
   maps.airspace = L.map('airspaceMap', {attributionControl:false}).setView(center, zoom);
   const tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
     attribution:'© CartoDB', maxZoom:18, keepBuffer:1, updateWhenZooming:false
@@ -2338,6 +2370,7 @@ function initAirspaceMap(){
   _airGpsLayer   = L.layerGroup().addTo(maps.airspace);
   drawAirspaceZones();
   if(S.loc) updateAirspaceMap();
+  setTimeout(()=>{ if(maps.airspace) maps.airspace.invalidateSize(); }, 250);
 }
 
 function drawAirspaceZones(){
