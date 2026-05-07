@@ -271,13 +271,6 @@ a{color:var(--acc);text-decoration:none}
   position:fixed;inset:0;z-index:9000;background:#000;
   display:flex;align-items:center;justify-content:center;overflow:hidden;
 }
-/* Contenedor de videos de fondo */
-#authBgVids{position:absolute;inset:0;z-index:0;overflow:hidden}
-.auth-vid{
-  position:absolute;inset:0;width:100%;height:100%;
-  object-fit:cover;opacity:0;transition:opacity 1s ease;pointer-events:none;
-}
-.auth-vid.active{opacity:1}
 /* Overlay oscuro sobre el video */
 #authOverlay{position:absolute;inset:0;z-index:1;background:rgba(0,0,0,.6);pointer-events:none}
 /* Partículas y formulario encima del overlay */
@@ -385,11 +378,9 @@ a{color:var(--acc);text-decoration:none}
 
 <!-- AUTH SCREEN -->
 <div id="authScreen">
-  <!-- Videos de fondo en loop secuencial con crossfade -->
-  <div id="authBgVids">
-    <video id="bgVidA" class="auth-vid active" muted playsinline preload="auto" loop></video>
-    <video id="bgVidB" class="auth-vid"        muted playsinline preload="auto"></video>
-  </div>
+  <!-- Video de fondo en loop secuencial -->
+  <video id="bgVideo" autoplay muted playsinline
+    style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;z-index:0"></video>
   <div id="authOverlay"></div>
   <canvas id="particlesCanvas"></canvas>
   <!-- LOGIN -->
@@ -1057,59 +1048,28 @@ function initAuthVideos(){
     'videos/topografia.mp4',
     'videos/drone.mp4'
   ];
-  const vidA = document.getElementById('bgVidA');
-  const vidB = document.getElementById('bgVidB');
-  if(!vidA || !vidB) return;
+  const vid = document.getElementById('bgVideo');
+  if(!vid) return;
 
-  let cur    = 0;    // índice del video visible actualmente
-  let elPlay = vidA; // elemento visible y reproduciéndose
-  let elWait = vidB; // elemento oculto precargando el siguiente
+  let idx = 0;
 
-  // Quitar loop: JS controla la rotación; el atributo es solo fallback sin JS
-  vidA.removeAttribute('loop');
-
-  function prep(el, i){
-    el.src = VIDS[((i % VIDS.length) + VIDS.length) % VIDS.length];
-    el.load();
+  function playNext(){
+    vid.src = VIDS[idx];
+    vid.load();
+    vid.play().catch(()=>{});
   }
 
-  function advance(){
-    cur = (cur + 1) % VIDS.length;
+  vid.addEventListener('ended', ()=>{
+    idx = (idx + 1) % VIDS.length;
+    playNext();
+  });
 
-    // Reproducir el video ya precargado en elWait
-    elWait.currentTime = 0;
-    elWait.play().catch(()=>{ setTimeout(advance, 300); });
+  vid.addEventListener('error', ()=>{
+    idx = (idx + 1) % VIDS.length;
+    playNext();
+  });
 
-    // Crossfade vía CSS transition opacity 1s
-    elWait.classList.add('active');
-    elPlay.classList.remove('active');
-
-    // ── FIX CLAVE: pausar el video saliente para que no dispare 'ended' de nuevo ──
-    elPlay.pause();
-
-    // Rotar roles
-    const tmp = elPlay;
-    elPlay = elWait;
-    elWait = tmp;
-
-    // Precargar el que viene después del que acaba de empezar
-    prep(elWait, (cur + 1) % VIDS.length);
-  }
-
-  // Cargar primero y precargar segundo simultáneamente
-  prep(vidA, 0);
-  prep(vidB, 1);
-
-  // Iniciar reproducción en cuanto haya datos suficientes
-  vidA.addEventListener('canplay', ()=>{ vidA.play().catch(()=>{}); }, { once: true });
-
-  // Al terminar cada video → avanzar al siguiente
-  vidA.addEventListener('ended', advance);
-  vidB.addEventListener('ended', advance);
-
-  // Error en el video en reproducción → saltar al siguiente
-  vidA.addEventListener('error', ()=>{ if(elPlay === vidA) advance(); });
-  vidB.addEventListener('error', ()=>{ if(elPlay === vidB) advance(); });
+  playNext();
 }
 
 // ── PARTICLES ─────────────────────────────────────────────────
