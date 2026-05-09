@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es" data-theme="dark">
 <head>
 <meta charset="UTF-8"/>
@@ -326,6 +326,7 @@ a{color:var(--acc);text-decoration:none}
 .drone-card{background:var(--bg1);border:1px solid var(--card-border);border-left:2px solid rgba(201,168,76,.5);border-radius:var(--r12);padding:14px;margin-bottom:14px;box-shadow:0 4px 24px rgba(201,168,76,.06)}
 .drone-card-inner{display:flex;gap:14px;align-items:flex-start}
 .drone-icon-box{font-size:38px;width:66px;height:66px;background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.18);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.drone-icon-box svg{width:54px;height:54px;display:block;}
 .drone-info{flex:1;min-width:0}
 .drone-card-name{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;color:var(--acc);letter-spacing:.5px;margin-bottom:2px}
 .drone-card-badge{font-family:'Rajdhani',sans-serif;font-size:9px;color:var(--txt2);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
@@ -730,10 +731,19 @@ a{color:var(--acc);text-decoration:none}
       <div style="color:var(--txt2);text-align:center;padding:20px;font-size:13px">Cargando usuarios…</div>
     </div>
   </div>
-  <div class="card">
+  <div class="card" style="margin-bottom:12px">
     <div class="ctit">✈️ Todos los vuelos</div>
     <div id="adminFlightsTable" style="overflow-x:auto;margin-top:12px">
       <div style="color:var(--txt2);text-align:center;padding:20px;font-size:13px">Cargando vuelos…</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ctit" style="display:flex;justify-content:space-between;align-items:center">
+      🎟️ Códigos de Invitación
+      <button class="btn btn-s" onclick="generateInviteCode()" style="font-size:11px;padding:4px 12px">+ Generar código</button>
+    </div>
+    <div id="adminCodesTable" style="overflow-x:auto;margin-top:12px">
+      <div style="color:var(--txt2);text-align:center;padding:20px;font-size:13px">Cargando códigos…</div>
     </div>
   </div>
 </section>
@@ -831,28 +841,41 @@ function initAuth(){
     // ── 4. Firestore: crear/actualizar doc de usuario ───────
     if(db){
       try{
-        const ref  = db.collection('usuarios').doc(user.uid);
-        const snap = await ref.get();
-        if(!snap.exists){
+        const ref = db.collection('usuarios').doc(user.uid);
+        if(isAdmin){
           await ref.set({
-            uid:           user.uid,
-            email:         user.email || '',
-            nombre:        user.displayName || user.email?.split('@')[0] || 'Piloto',
-            plan:          'free',
-            activo:        true,
-            fechaRegistro: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          console.log('[Geonex] Documento de usuario creado en Firestore');
+            uid:        user.uid,
+            email:      user.email || '',
+            nombre:     user.displayName || 'Admin',
+            plan:       'pro',
+            activo:     true,
+            rol:        'admin',
+            ultimoLogin: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+          console.log('[Geonex] Admin doc actualizado en Firestore');
         } else {
-          const data = snap.data();
-          if(data.activo === false){
-            console.warn('[Geonex] Cuenta desactivada — cerrando sesión');
-            _deactivatedFlag = true;
-            await auth.signOut();
-            return;
+          const snap = await ref.get();
+          if(!snap.exists){
+            await ref.set({
+              uid:           user.uid,
+              email:         user.email || '',
+              nombre:        user.displayName || user.email?.split('@')[0] || 'Piloto',
+              plan:          'free',
+              activo:        true,
+              fechaRegistro: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            console.log('[Geonex] Documento de usuario creado en Firestore');
+          } else {
+            const data = snap.data();
+            if(data.activo === false){
+              console.warn('[Geonex] Cuenta desactivada — cerrando sesión');
+              _deactivatedFlag = true;
+              await auth.signOut();
+              return;
+            }
+            await ref.update({ ultimoLogin: firebase.firestore.FieldValue.serverTimestamp() });
+            console.log('[Geonex] ultimoLogin actualizado en Firestore');
           }
-          await ref.update({ ultimoLogin: firebase.firestore.FieldValue.serverTimestamp() });
-          console.log('[Geonex] ultimoLogin actualizado en Firestore');
         }
       } catch(e){
         console.warn('[Geonex] Firestore user doc error:', e.code, e.message);
@@ -896,25 +919,32 @@ async function doRegister(){
   const name  = document.getElementById('regName').value.trim();
   const email = document.getElementById('regEmail').value.trim();
   const pass  = document.getElementById('regPass').value;
-  if(!code||!name||!email||!pass){ showAuthErr('registerErr','Completa todos los campos'); return; }
+  const isAdminReg = email === ADMIN_EMAIL;
+  if(!name||!email||!pass){ showAuthErr('registerErr','Completa todos los campos'); return; }
+  if(!isAdminReg && !code){ showAuthErr('registerErr','Completa todos los campos'); return; }
   if(pass.length<6){ showAuthErr('registerErr','Contraseña mínimo 6 caracteres'); return; }
   try{
-    if(db){
-      const snap = await db.collection('invite_codes').doc(code).get();
-      if(!snap.exists||snap.data()?.active===false){
-        showAuthErr('registerErr','Código de invitación inválido'); return;
+    if(db && !isAdminReg){
+      const snap = await db.collection('codigos_invitacion').doc(code).get();
+      if(!snap.exists || snap.data()?.usado !== false){
+        showAuthErr('registerErr','Código inválido o ya utilizado'); return;
       }
     }
     const cred = await auth.createUserWithEmailAndPassword(email, pass);
     await cred.user.updateProfile({ displayName: name });
     if(db){
-      // Crear doc con nombre correcto (onAuthStateChanged puede dispararse antes del updateProfile)
       await db.collection('usuarios').doc(cred.user.uid).set({
         uid: cred.user.uid, email, nombre: name,
         plan: 'free', activo: true,
         fechaRegistro: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
-      await db.collection('invite_codes').doc(code).update({ used:true, usedBy:email, usedAt:Date.now() });
+      if(!isAdminReg){
+        await db.collection('codigos_invitacion').doc(code).update({
+          usado: true,
+          usadoPor: cred.user.uid,
+          fechaUso: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
     }
     toast('¡Bienvenido, '+name+'! Cuenta creada ✓','ok');
   } catch(e){
@@ -944,6 +974,7 @@ async function loadAdminPanel(){
 
   const usersEl   = document.getElementById('adminUsersTable');
   const flightsEl = document.getElementById('adminFlightsTable');
+  loadAdminCodes();
 
   // ── Usuarios ──────────────────────────────────────────────
   try{
@@ -1003,6 +1034,60 @@ async function loadAdminPanel(){
     }
   } catch(e){
     flightsEl.innerHTML = `<div style="color:var(--red);padding:12px;font-size:13px">Error al cargar vuelos: ${e.message}</div>`;
+  }
+}
+
+async function generateInviteCode(){
+  if(localStorage.getItem('adminMode') !== 'true') return;
+  if(!db) return;
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for(let i=0;i<8;i++) code += chars[Math.floor(Math.random()*chars.length)];
+  try{
+    await db.collection('codigos_invitacion').doc(code).set({
+      codigo: code,
+      usado: false,
+      creadoPor: ADMIN_EMAIL,
+      fechaCreacion: firebase.firestore.FieldValue.serverTimestamp(),
+      fechaUso: null,
+      usadoPor: null
+    });
+    toast('Código generado: ' + code, 'ok');
+    loadAdminCodes();
+  } catch(e){ toast('Error: '+e.message, 'warn'); }
+}
+
+async function loadAdminCodes(){
+  if(localStorage.getItem('adminMode') !== 'true') return;
+  if(!db) return;
+  const el = document.getElementById('adminCodesTable');
+  if(!el) return;
+  try{
+    const snap  = await db.collection('codigos_invitacion').orderBy('fechaCreacion','desc').get();
+    const codes = snap.docs.map(d=>({_id:d.id,...d.data()}));
+    if(!codes.length){
+      el.innerHTML = '<div style="color:var(--txt2);text-align:center;padding:20px;font-size:13px">Sin códigos generados</div>';
+    } else {
+      el.innerHTML = `<table class="admin-table">
+        <thead><tr><th>Código</th><th>Estado</th><th>Usado por (UID)</th><th>Fecha uso</th></tr></thead>
+        <tbody>${codes.map(c=>{
+          const usado = c.usado === true;
+          let fechaStr = '-';
+          if(c.fechaUso){
+            const d = c.fechaUso.toDate ? c.fechaUso.toDate() : new Date(c.fechaUso);
+            fechaStr = d.toLocaleDateString('es-MX');
+          }
+          return `<tr>
+            <td style="font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:2px;font-size:14px">${c.codigo||c._id}</td>
+            <td><span class="adm-badge ${usado?'adm-badge-off':'adm-badge-on'}">${usado?'❌ Usado':'✅ Disponible'}</span></td>
+            <td style="font-size:11px;color:var(--txt2)">${c.usadoPor||'-'}</td>
+            <td style="font-size:12px;color:var(--txt2)">${fechaStr}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>`;
+    }
+  } catch(e){
+    el.innerHTML = `<div style="color:var(--red);padding:12px;font-size:13px">Error al cargar códigos: ${e.message}</div>`;
   }
 }
 
@@ -1106,42 +1191,123 @@ function initParticles(){
 }
 
 // ── DRONE DATA ─────────────────────────────────────────────────
+const _SVG_BASE = `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><rect x="30" y="30" width="20" height="20" rx="4" fill="white"/><circle cx="40" cy="40" r="4" fill="#111" stroke="white" stroke-width="1"/><line x1="30" y1="30" x2="14" y2="14" stroke="white" stroke-width="2.5" stroke-linecap="round"/><ellipse cx="14" cy="14" rx="8" ry="2.5" fill="white" opacity="0.7" transform="rotate(-45 14 14)"/><line x1="50" y1="30" x2="66" y2="14" stroke="white" stroke-width="2.5" stroke-linecap="round"/><ellipse cx="66" cy="14" rx="8" ry="2.5" fill="white" opacity="0.7" transform="rotate(45 66 14)"/><line x1="30" y1="50" x2="14" y2="66" stroke="white" stroke-width="2.5" stroke-linecap="round"/><ellipse cx="14" cy="66" rx="8" ry="2.5" fill="white" opacity="0.7" transform="rotate(45 14 66)"/><line x1="50" y1="50" x2="66" y2="66" stroke="white" stroke-width="2.5" stroke-linecap="round"/><ellipse cx="66" cy="66" rx="8" ry="2.5" fill="white" opacity="0.7" transform="rotate(-45 66 66)"/></svg>`;
+const _SVG_FLOTA = `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><rect x="30" y="30" width="20" height="20" rx="4" fill="white"/><circle cx="40" cy="40" r="4" fill="#111" stroke="white" stroke-width="1"/><circle cx="40" cy="36" r="3" fill="#FFD700"/><line x1="30" y1="30" x2="14" y2="14" stroke="white" stroke-width="2.5" stroke-linecap="round"/><ellipse cx="14" cy="14" rx="8" ry="2.5" fill="white" opacity="0.7" transform="rotate(-45 14 14)"/><line x1="50" y1="30" x2="66" y2="14" stroke="white" stroke-width="2.5" stroke-linecap="round"/><ellipse cx="66" cy="14" rx="8" ry="2.5" fill="white" opacity="0.7" transform="rotate(45 66 14)"/><line x1="30" y1="50" x2="14" y2="66" stroke="white" stroke-width="2.5" stroke-linecap="round"/><ellipse cx="14" cy="66" rx="8" ry="2.5" fill="white" opacity="0.7" transform="rotate(45 14 66)"/><line x1="50" y1="50" x2="66" y2="66" stroke="white" stroke-width="2.5" stroke-linecap="round"/><ellipse cx="66" cy="66" rx="8" ry="2.5" fill="white" opacity="0.7" transform="rotate(-45 66 66)"/></svg>`;
+const IC = {
+  air3s:_SVG_FLOTA,
+  mavic2s:_SVG_BASE,
+  air2s:_SVG_FLOTA,
+  mini4pro:_SVG_BASE,
+  mini3pro:_SVG_BASE,
+  mavic3pro:_SVG_BASE,
+  mavic3classic:_SVG_BASE,
+  phantom4rtk:_SVG_BASE,
+  phantom4prov2:_SVG_BASE,
+  m350rtk:_SVG_BASE,
+  m300rtk:_SVG_BASE,
+  agras40:_SVG_BASE,
+  agras25:_SVG_BASE,
+  fpv:_SVG_BASE,
+  avata2:_SVG_BASE,
+  neo:_SVG_BASE
+};
+
 const DRONES = {
   air3s:{
-    name:'DJI Air 3S', icon:'🚁', highlight:true,
+    name:'DJI Air 3S', icon:IC.air3s, highlight:true,
     maxWind:12, maxGusts:15, minTemp:-10, maxTemp:40, flightTime:46,
     battery:4241, sensor:'1" CMOS', mp:50, focal:24,
     sW:13.2, sH:8.8, imgW:8064, imgH:6048
   },
   mavic2s:{
-    name:'DJI Mavic 2S', icon:'🚁', highlight:true,
+    name:'DJI Mavic 2S', icon:IC.mavic2s, highlight:true,
     maxWind:10.7, maxGusts:12, minTemp:-10, maxTemp:40, flightTime:31,
     battery:3850, sensor:'1" CMOS', mp:20, focal:28,
     sW:13.2, sH:8.8, imgW:5280, imgH:3956
   },
   air2s:{
-    name:'DJI Air 2S', icon:'🚁', highlight:false,
+    name:'DJI Air 2S', icon:IC.air2s, highlight:false,
     maxWind:10.7, maxGusts:12, minTemp:-10, maxTemp:40, flightTime:31,
     battery:3750, sensor:'1" CMOS', mp:20, focal:22,
     sW:13.2, sH:8.8, imgW:5472, imgH:3648
   },
   mini4pro:{
-    name:'DJI Mini 4 Pro', icon:'🚁', highlight:false,
+    name:'DJI Mini 4 Pro', icon:IC.mini4pro, highlight:false,
     maxWind:10.7, maxGusts:12, minTemp:-10, maxTemp:40, flightTime:34,
     battery:2590, sensor:'1/1.3" CMOS', mp:48, focal:24,
     sW:9.6, sH:7.2, imgW:8064, imgH:6048
   },
+  mini3pro:{
+    name:'DJI Mini 3 Pro', icon:IC.mini3pro, highlight:false,
+    maxWind:10.7, maxGusts:12, minTemp:-10, maxTemp:40, flightTime:34,
+    battery:2453, sensor:'1/1.3" CMOS', mp:48, focal:24,
+    sW:9.6, sH:7.2, imgW:8064, imgH:6048
+  },
   mavic3pro:{
-    name:'DJI Mavic 3 Pro', icon:'🚁', highlight:false,
+    name:'DJI Mavic 3 Pro', icon:IC.mavic3pro, highlight:false,
     maxWind:12, maxGusts:15, minTemp:-10, maxTemp:40, flightTime:43,
     battery:5000, sensor:'4/3" CMOS', mp:50, focal:24,
     sW:17.3, sH:13.0, imgW:8192, imgH:6144
   },
+  mavic3classic:{
+    name:'DJI Mavic 3 Classic', icon:IC.mavic3classic, highlight:false,
+    maxWind:12, maxGusts:15, minTemp:-10, maxTemp:40, flightTime:43,
+    battery:5000, sensor:'4/3" CMOS', mp:20, focal:24,
+    sW:17.3, sH:13.0, imgW:5280, imgH:3956
+  },
+  phantom4rtk:{
+    name:'DJI Phantom 4 RTK', icon:IC.phantom4rtk, highlight:false,
+    maxWind:10, maxGusts:12, minTemp:-10, maxTemp:40, flightTime:30,
+    battery:5870, sensor:'1" CMOS', mp:20, focal:24,
+    sW:13.2, sH:8.8, imgW:8000, imgH:6000
+  },
   phantom4prov2:{
-    name:'DJI Phantom 4 Pro V2', icon:'🚁', highlight:false,
+    name:'DJI Phantom 4 Pro V2', icon:IC.phantom4prov2, highlight:false,
     maxWind:10, maxGusts:12, minTemp:-10, maxTemp:40, flightTime:30,
     battery:5870, sensor:'1" CMOS', mp:20, focal:24,
     sW:13.2, sH:8.8, imgW:5472, imgH:3648
+  },
+  m350rtk:{
+    name:'DJI Matrice 350 RTK', icon:IC.m350rtk, highlight:false,
+    maxWind:15, maxGusts:18, minTemp:-20, maxTemp:50, flightTime:55,
+    battery:9000, sensor:'Payload', mp:20, focal:24,
+    sW:13.2, sH:8.8, imgW:8000, imgH:6000
+  },
+  m300rtk:{
+    name:'DJI Matrice 300 RTK', icon:IC.m300rtk, highlight:false,
+    maxWind:15, maxGusts:18, minTemp:-20, maxTemp:50, flightTime:55,
+    battery:7200, sensor:'Payload', mp:20, focal:24,
+    sW:13.2, sH:8.8, imgW:8000, imgH:6000
+  },
+  agras40:{
+    name:'DJI Agras T40', icon:IC.agras40, highlight:false,
+    maxWind:8, maxGusts:10, minTemp:0, maxTemp:45, flightTime:18,
+    battery:30000, sensor:'FPV', mp:0, focal:24,
+    sW:13.2, sH:8.8, imgW:1920, imgH:1080
+  },
+  agras25:{
+    name:'DJI Agras T25', icon:IC.agras25, highlight:false,
+    maxWind:8, maxGusts:10, minTemp:0, maxTemp:45, flightTime:15,
+    battery:21000, sensor:'FPV', mp:0, focal:24,
+    sW:13.2, sH:8.8, imgW:1920, imgH:1080
+  },
+  fpv:{
+    name:'DJI FPV', icon:IC.fpv, highlight:false,
+    maxWind:20, maxGusts:25, minTemp:-10, maxTemp:40, flightTime:20,
+    battery:2000, sensor:'Action Cam', mp:4, focal:12,
+    sW:6.3, sH:4.7, imgW:4000, imgH:3000
+  },
+  avata2:{
+    name:'DJI Avata 2', icon:IC.avata2, highlight:false,
+    maxWind:12, maxGusts:15, minTemp:-10, maxTemp:40, flightTime:23,
+    battery:2420, sensor:'1/1.7" CMOS', mp:12, focal:12,
+    sW:7.2, sH:5.4, imgW:4000, imgH:3000
+  },
+  neo:{
+    name:'DJI Neo', icon:IC.neo, highlight:false,
+    maxWind:8, maxGusts:10, minTemp:0, maxTemp:40, flightTime:12,
+    battery:950, sensor:'1/2" CMOS', mp:12, focal:12,
+    sW:6.3, sH:4.7, imgW:4000, imgH:3000
   }
 };
 
@@ -2804,3 +2970,4 @@ window.dispatchEvent(new Event('resize'));
 </script>
 </body>
 </html>
+
