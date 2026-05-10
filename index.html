@@ -3526,52 +3526,21 @@ function renderPlanesSection(){
   el.innerHTML = html;
 }
 
-async function subscribeMp(planType){
-  const user = firebase.auth().currentUser;
-  if(!user){ showToast('Inicia sesión para suscribirte'); return; }
-
-  if(!MP_ACCESS_TOKEN){
-    showToast('Integración de pagos en configuración. Contacta a soporte.');
-    return;
-  }
-
-  showToast('Redirigiendo a MercadoPago…');
-
-  const isAnual  = planType === 'pro_anual';
-  const reason   = isAnual ? 'Geonex Pro Anual' : 'Geonex Pro Mensual';
-  const amount   = isAnual ? 3000 : 500;
-  const backBase = window.location.href.split('?')[0];
-
-  const body = {
-    reason,
-    auto_recurring:{
-      frequency:      1,
-      frequency_type: 'months',
-      transaction_amount: amount,
-      currency_id:    'MXN',
-    },
-    back_url:           backBase + '?mp_status=success&plan=' + planType,
-    payer_email:        user.email,
-    external_reference: user.uid + '_' + planType,
-  };
-
-  try{
-    const res = await fetch('https://api.mercadopago.com/preapproval', {
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'Authorization':'Bearer ' + MP_ACCESS_TOKEN,
-      },
-      body: JSON.stringify(body),
+async function subscribeMp(type) {
+  try {
+    const res = await fetch('/api/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type })
     });
     const data = await res.json();
-    if(data.init_point){
+    if (data.init_point) {
       window.location.href = data.init_point;
     } else {
-      showToast('Error MP: ' + (data.message || 'intenta nuevamente'));
+      alert('Error al procesar el pago. Intenta de nuevo.');
     }
-  } catch(e){
-    showToast('Error de conexión con MercadoPago');
+  } catch (error) {
+    alert('Error de conexión. Intenta de nuevo.');
   }
 }
 
