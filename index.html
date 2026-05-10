@@ -1362,7 +1362,7 @@ const S = {
   generatedWPs: [],   // {lat,lng,alt}[]
   msnCfg: {
     altitude:120, speed:8, gimbal:-90,
-    passDist:50, photoSec:2, overlap:70,
+    passDist:50, photoSec:2, overlap:70, overlapLat:70,
     orient:'ew', endAction:'rtl'
   },
   flights: [],
@@ -1974,6 +1974,8 @@ const CFG_ITEMS = [
    svg:`<svg viewBox="0 0 40 40" width="36" height="36"><rect x="8" y="13" width="24" height="18" rx="3" fill="none" stroke="#4a9eff" stroke-width="2"/><circle cx="20" cy="22" r="5" fill="none" stroke="#4a9eff" stroke-width="2"/><circle cx="20" cy="22" r="2" fill="#4a9eff"/><path d="M15 13 L17 9 L23 9 L25 13" stroke="#4a9eff" stroke-width="1.5" fill="none"/></svg>`},
   {key:'overlap',   label:'Overlap frontal (%)', type:'number', min:50,  max:90,  step:5,
    svg:`<svg viewBox="0 0 40 40" width="36" height="36"><rect x="6" y="10" width="20" height="16" rx="2" fill="#4a9eff" opacity=".4" stroke="#4a9eff" stroke-width="1.5"/><rect x="14" y="14" width="20" height="16" rx="2" fill="#E24B4A" opacity=".4" stroke="#E24B4A" stroke-width="1.5"/></svg>`},
+  {key:'overlapLat',label:'Overlap Lateral (%)',  type:'number', min:50,  max:90,  step:5,
+   svg:`<svg viewBox="0 0 40 40" width="36" height="36"><rect x="6" y="8" width="16" height="24" rx="2" fill="#4a9eff" opacity=".4" stroke="#4a9eff" stroke-width="1.5"/><rect x="18" y="8" width="16" height="24" rx="2" fill="#E24B4A" opacity=".4" stroke="#E24B4A" stroke-width="1.5"/></svg>`},
   {key:'orient',    label:'Orientación',        type:'select', options:[{v:'ew',l:'↔ E–O'},{v:'ns',l:'↕ N–S'}],
    svg:`<svg viewBox="0 0 40 40" width="36" height="36"><path d="M20 6 L20 34" stroke="#4a9eff" stroke-width="2"/><path d="M6 20 L34 20" stroke="#4a9eff" stroke-width="2"/><text x="20" y="9" text-anchor="middle" font-size="7" fill="#fff">N</text><text x="20" y="37" text-anchor="middle" font-size="7" fill="#fff">S</text><text x="37" y="23" text-anchor="middle" font-size="7" fill="#fff">E</text><text x="3" y="23" text-anchor="middle" font-size="7" fill="#fff">O</text></svg>`},
   {key:'endAction', label:'Acción al terminar', type:'select', options:[{v:'rtl',l:'↩ RTL'},{v:'hover',l:'⏸ Hover'},{v:'land',l:'⬇ Aterrizar'}],
@@ -1986,9 +1988,9 @@ function buildMissionConfig(){
     const val = S.msnCfg[item.key];
     let inputHtml;
     if(item.type==='select'){
-      inputHtml = `<select onchange="S.msnCfg.${item.key}=this.value">${item.options.map(o=>`<option value="${o.v}"${o.v===val?'selected':''}>${o.l}</option>`).join('')}</select>`;
+      inputHtml = `<select onchange="S.msnCfg.${item.key}=this.value;autoRegenMission()">${item.options.map(o=>`<option value="${o.v}"${o.v===val?'selected':''}>${o.l}</option>`).join('')}</select>`;
     } else {
-      inputHtml = `<input type="number" value="${val}" min="${item.min}" max="${item.max}" step="${item.step}" onchange="S.msnCfg.${item.key}=+this.value"/>`;
+      inputHtml = `<input type="number" value="${val}" min="${item.min}" max="${item.max}" step="${item.step}" onchange="S.msnCfg.${item.key}=+this.value;autoRegenMission()"/>`;
     }
     return `<div class="cfg-item">
       <div class="cfg-svg">${item.svg}</div>
@@ -2017,7 +2019,7 @@ function cleanWaypoints(wps, minDist = 0.5){
 }
 
 // ── SERPENTINE WAYPOINTS ───────────────────────────────────────
-function generateMission(){
+function generateMission(silent){
   let pts = [];
   if(S.polyClosed && S.polyPts.length>=3){
     pts = S.polyPts;
@@ -2032,7 +2034,7 @@ function generateMission(){
       {lat:Math.min(...lats), lng:Math.max(...lngs)},
     ];
   } else {
-    toast('Traza un polígono o agrega waypoints primero','warn');
+    if(!silent) toast('Traza un polígono o agrega waypoints primero','warn');
     return;
   }
 
@@ -2041,7 +2043,7 @@ function generateMission(){
   // ── VALIDATION: remove duplicates and near-duplicates (<0.5m) ──
   const wps = cleanWaypoints(rawWps);
   const removed = rawWps.length - wps.length;
-  if(!wps.length){ toast('El área es demasiado pequeña para la distancia de pasada','warn'); return; }
+  if(!wps.length){ if(!silent) toast('El área es demasiado pequeña para la distancia de pasada','warn'); return; }
 
   // Remove old generated markers AND manual waypoint markers to avoid overlap
   S.generatedWPs.forEach(w=>{ if(w._mk) maps.plan.removeLayer(w._mk); });
@@ -2060,15 +2062,17 @@ function generateMission(){
   // draw route
   if(wps.length>=2){
     S.wpLine = L.polyline(wps.map(w=>[w.lat,w.lng]),{color:'#E24B4A',weight:2,opacity:.8}).addTo(maps.plan);
-    maps.plan.fitBounds(S.wpLine.getBounds().pad(0.1));
+    if(!silent) maps.plan.fitBounds(S.wpLine.getBounds().pad(0.1));
   }
   // relleno cambia a naranja para indicar misión activa
   if(S.polyFill) S.polyFill.setStyle({fillColor:'#ff9600', fillOpacity:0.1});
 
   // show stats
   const dist = totalDist(wps);
-  const timeMin = dist/S.msnCfg.speed/60;
+  const timeMin = dist / S.msnCfg.speed / 60;
   const area = polygonArea(pts);
+  const photoIntervalM = computePhotoInterval(S.msnCfg);
+  const nPhotos = photoIntervalM > 0 ? Math.ceil(dist / photoIntervalM) : 0;
   document.getElementById('missionStats').style.display='block';
   document.getElementById('missionStatsContent').innerHTML = `
     <div class="msn-stat-grid" style="grid-template-columns:repeat(3,1fr)">
@@ -2077,21 +2081,52 @@ function generateMission(){
         <div class="msn-stat-lbl">Waypoints</div>
       </div>
       <div class="msn-stat">
-        <div class="msn-stat-val">${(dist/1000).toFixed(2)}</div>
-        <div class="msn-stat-lbl">km Distancia</div>
+        <div class="msn-stat-val">${dist>=1000?(dist/1000).toFixed(2)+' km':Math.round(dist)+' m'}</div>
+        <div class="msn-stat-lbl">Distancia total</div>
       </div>
       <div class="msn-stat">
-        <div class="msn-stat-val">${timeMin.toFixed(1)}</div>
-        <div class="msn-stat-lbl">min Estimado</div>
+        <div class="msn-stat-val">${timeMin.toFixed(1)} min</div>
+        <div class="msn-stat-lbl">Tiempo estimado</div>
+      </div>
+    </div>
+    <div class="msn-stat-grid" style="grid-template-columns:repeat(2,1fr);margin-top:4px">
+      <div class="msn-stat">
+        <div class="msn-stat-val">${nPhotos}</div>
+        <div class="msn-stat-lbl">Fotos estimadas</div>
+      </div>
+      <div class="msn-stat">
+        <div class="msn-stat-val">${(area/10000).toFixed(2)} ha</div>
+        <div class="msn-stat-lbl">Área cubierta</div>
       </div>
     </div>
     <div style="margin-top:8px;font-size:11px;color:var(--txt2);text-align:center;font-family:'Rajdhani',sans-serif;letter-spacing:.5px">
-      ÁREA ${(area/10000).toFixed(2)} ha &nbsp;·&nbsp; ALT ${S.msnCfg.altitude}m &nbsp;·&nbsp; VEL ${S.msnCfg.speed}m/s
+      ALT ${S.msnCfg.altitude}m &nbsp;·&nbsp; VEL ${S.msnCfg.speed}m/s &nbsp;·&nbsp; OVL-F ${S.msnCfg.overlap}% &nbsp;·&nbsp; OVL-L ${S.msnCfg.overlapLat||70}%
     </div>
     ${removed>0?`<div style="margin-top:6px;font-size:11px;color:var(--warn);text-align:center;font-family:'Rajdhani',sans-serif;letter-spacing:.5px">⚠ ${removed} punto${removed>1?'s':''} duplicado${removed>1?'s':''} eliminado${removed>1?'s':''} · Ruta validada</div>`:''}
   `;
 
-  toast(`Misión generada: ${wps.length} waypoints${removed>0?' ('+removed+' duplicados eliminados)':''}  ✓`,'ok');
+  if(!silent) toast(`Misión generada: ${wps.length} waypoints${removed>0?' ('+removed+' duplicados eliminados)':''}  ✓`,'ok');
+}
+
+function autoRegenMission(){
+  if(S.generatedWPs.length > 0) generateMission(true);
+}
+
+function computePassDist(cfg){
+  const d = DRONES[S.drone];
+  if(d && d.sW && d.focal){
+    return (d.sW / d.focal) * cfg.altitude * (1 - cfg.overlap / 100);
+  }
+  return cfg.passDist * (1 - cfg.overlap / 100);
+}
+
+function computePhotoInterval(cfg){
+  const d = DRONES[S.drone];
+  const overlapLat = cfg.overlapLat != null ? cfg.overlapLat : 70;
+  if(d && d.sW && d.focal){
+    return (d.sW / d.focal) * cfg.altitude * (1 - overlapLat / 100);
+  }
+  return cfg.passDist * (1 - overlapLat / 100);
 }
 
 function computeSerpentine(polygon, cfg){
@@ -2106,9 +2141,10 @@ function computeSerpentine(polygon, cfg){
 
   const wps = [];
 
+  const passM = computePassDist(cfg);
   if(cfg.orient === 'ew'){
     // Strips go E–W, advance N–S
-    const stepLat = cfg.passDist / mPerLatDeg;
+    const stepLat = passM / mPerLatDeg;
     let dir = 1;
     for(let lat=minLat+stepLat/2; lat<=maxLat; lat+=stepLat){
       const xs = hIntersect(polygon, lat);
@@ -2123,7 +2159,7 @@ function computeSerpentine(polygon, cfg){
     }
   } else {
     // Strips go N–S, advance E–W
-    const stepLng = cfg.passDist / mPerLngDeg;
+    const stepLng = passM / mPerLngDeg;
     let dir = 1;
     for(let lng=minLng+stepLng/2; lng<=maxLng; lng+=stepLng){
       const ys = vIntersect(polygon, lng);
