@@ -562,7 +562,7 @@ a{color:var(--acc);text-decoration:none}
   </div>
   <div style="display:flex;gap:10px;margin-bottom:14px">
     <button class="btn btn-p" style="flex:1" onclick="generateMission()">⚡ Generar Misión</button>
-    <button class="btn btn-b" style="flex:1" onclick="downloadKMZ()">📥 Descargar KMZ</button>
+    <button id="kmzBtn" class="btn btn-b" style="flex:1" onclick="downloadKMZ()">📥 Descargar KMZ</button>
   </div>
   <div id="missionStats" class="card" style="display:none">
     <div class="ctit">📊 Estadísticas de Misión</div>
@@ -683,6 +683,12 @@ a{color:var(--acc);text-decoration:none}
     <div id="airspaceMap" class="map-box tall"></div>
     <div id="airspaceLoader" class="map-loader"><span class="spin-ic">🔄</span><span>Cargando mapa…</span></div>
     <button class="map-reload-btn" onclick="reloadMapTiles('airspace')" title="Recargar mapa">🔄</button>
+    <div id="espacioOverlay" style="display:none;position:absolute;inset:0;z-index:900;background:rgba(8,8,18,.88);border-radius:8px;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px">
+      <div style="font-size:36px">🔒</div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;color:#fff;letter-spacing:.5px">Disponible en Plan Pro</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.55);max-width:240px">Desbloquea el mapa de espacio aéreo con restricciones FAA/DGAC actualizadas</div>
+      <button class="btn btn-p" style="margin-top:4px" onclick="showSec('planes')">Ver Planes</button>
+    </div>
   </div>
   <div class="card">
     <div class="ctit">✈️ Aeropuertos y Zonas de Control</div>
@@ -1096,6 +1102,7 @@ function initAuth(){
             console.log('[Geonex] ultimoLogin actualizado en Firestore');
           }
         }
+        applyPlanRestrictions(window._userPlan);
         handleMpReturn();
       } catch(e){
         console.warn('[Geonex] Firestore user doc error:', e.code, e.message);
@@ -2677,6 +2684,11 @@ function setToday(){
 }
 
 async function saveFlight(){
+  if((window._userPlan || 'free') !== 'pro' && S.flights.length >= 10){
+    alert('Límite de 10 vuelos alcanzado en el plan Free.\nActualiza a Plan Pro para guardar vuelos ilimitados.');
+    showSec('planes');
+    return;
+  }
   const loc = document.getElementById('flLoc').value.trim();
   if(!loc){ toast('Ingresa una ubicación','warn'); return; }
   const dur = parseInt(document.getElementById('flDur').value)||0;
@@ -3410,6 +3422,45 @@ async function ariaSend(){
 function ariaSendChip(text){
   const inp = document.getElementById('ariaInputField');
   if(inp){ inp.value = text; ariaSend(); }
+}
+
+// ── PLAN RESTRICTIONS ──────────────────────────────────────────
+function applyPlanRestrictions(plan){
+  const isFree = plan !== 'pro';
+
+  // KMZ button
+  const kmzBtn = document.getElementById('kmzBtn');
+  if(kmzBtn){
+    if(isFree){
+      kmzBtn.disabled = true;
+      kmzBtn.style.opacity = '0.4';
+      kmzBtn.style.cursor = 'not-allowed';
+      kmzBtn.textContent = '🔒 KMZ — Solo Plan Pro';
+      kmzBtn.onclick = function(){ showSec('planes'); };
+    } else {
+      kmzBtn.disabled = false;
+      kmzBtn.style.opacity = '';
+      kmzBtn.style.cursor = '';
+      kmzBtn.textContent = '📥 Descargar KMZ';
+      kmzBtn.onclick = downloadKMZ;
+    }
+  }
+
+  // Espacio Aéreo overlay
+  const overlay = document.getElementById('espacioOverlay');
+  if(overlay) overlay.style.display = isFree ? 'flex' : 'none';
+
+  // ARIA floating button
+  const ariaBtn = document.getElementById('ariaBtnFloat');
+  const ariaPanel = document.getElementById('ariaPanel');
+  if(ariaBtn){
+    if(isFree){
+      ariaBtn.style.display = 'none';
+      if(ariaPanel) ariaPanel.style.display = 'none';
+    } else {
+      ariaBtn.style.display = 'flex';
+    }
+  }
 }
 
 // ── PLANES & MERCADOPAGO ────────────────────────────────────────
