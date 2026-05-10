@@ -44,12 +44,16 @@ export default async function handler(req, res) {
       body: JSON.stringify(plans[type])
     });
 
-    const data = await response.json();
+    const responseText = await response.text();
+    console.log('MP Response status:', response.status);
+    console.log('MP Response body:', responseText);
+
+    const data = JSON.parse(responseText);
 
     if (data.init_point) {
       return res.status(200).json({ init_point: data.init_point });
     } else {
-      return res.status(400).json({ error: data, status: response.status, message: JSON.stringify(data) });
+      return res.status(400).json({ error: responseText, status: response.status });
     }
   } catch (error) {
     return res.status(500).json({ error: error.message });
