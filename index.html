@@ -752,6 +752,185 @@ a{color:var(--acc);text-decoration:none}
 
 </main>
 
+<!-- ── ARIA AI ASSISTANT ──────────────────────────────────── -->
+<style>
+#ariaBtnFloat{
+  position:fixed;bottom:24px;right:24px;z-index:8000;
+  width:56px;height:56px;border-radius:50%;
+  background:linear-gradient(135deg,#1a1a2e,#16213e);
+  border:2px solid rgba(255,215,0,.5);cursor:pointer;padding:0;
+  display:flex;align-items:center;justify-content:center;
+  animation:aria-pulse 2.8s ease-in-out infinite;transition:transform .2s;
+}
+#ariaBtnFloat:hover{transform:scale(1.1)}
+@keyframes aria-pulse{
+  0%,100%{box-shadow:0 4px 18px rgba(255,215,0,.2),0 0 0 0 rgba(255,215,0,.35)}
+  55%{box-shadow:0 4px 22px rgba(255,215,0,.4),0 0 0 10px rgba(255,215,0,0)}
+}
+#ariaPanel{
+  position:fixed;bottom:92px;right:24px;width:380px;height:520px;z-index:8000;
+  background:#0a0a0f;border:1px solid rgba(255,215,0,.22);border-radius:16px;
+  display:flex;flex-direction:column;overflow:hidden;
+  box-shadow:0 12px 60px rgba(0,0,0,.75),0 0 0 1px rgba(255,215,0,.06);
+  transform:translateY(16px) scale(.97);opacity:0;pointer-events:none;
+  transition:transform .26s cubic-bezier(.4,0,.2,1),opacity .26s ease;
+}
+#ariaPanel.aria-open{transform:translateY(0) scale(1);opacity:1;pointer-events:all}
+#ariaHeader{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:13px 15px;
+  background:linear-gradient(135deg,rgba(255,215,0,.07),rgba(255,215,0,.02));
+  border-bottom:1px solid rgba(255,215,0,.11);flex-shrink:0;
+}
+.aria-hdr-left{display:flex;align-items:center;gap:10px}
+.aria-hdr-icon{
+  width:32px;height:32px;border-radius:50%;
+  background:rgba(255,215,0,.1);border:1px solid rgba(255,215,0,.28);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.aria-hdr-title{
+  font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;
+  color:#FFD700;letter-spacing:.8px;display:flex;align-items:center;gap:7px;
+}
+.aria-badge-ia{
+  background:rgba(255,215,0,.13);color:#FFD700;
+  border:1px solid rgba(255,215,0,.35);border-radius:4px;
+  padding:1px 6px;font-size:9px;font-weight:700;letter-spacing:1.5px;
+}
+.aria-hdr-sub{
+  font-size:10px;color:rgba(255,255,255,.38);
+  font-family:'Rajdhani',sans-serif;letter-spacing:1.5px;margin-top:1px;
+}
+#ariaCloseBtn{
+  background:none;border:1px solid rgba(255,215,0,.15);border-radius:50%;
+  width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:rgba(255,255,255,.45);font-size:15px;
+  transition:all .18s;padding:0;line-height:1;
+}
+#ariaCloseBtn:hover{border-color:rgba(255,215,0,.5);color:#FFD700;background:rgba(255,215,0,.08)}
+#ariaMessages{
+  flex:1;overflow-y:auto;padding:13px;
+  display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;
+}
+#ariaMessages::-webkit-scrollbar{width:3px}
+#ariaMessages::-webkit-scrollbar-thumb{background:rgba(255,215,0,.2);border-radius:2px}
+.aria-msg{display:flex;gap:8px;align-items:flex-end;animation:aria-fadein .22s ease}
+@keyframes aria-fadein{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+.aria-msg-ai{flex-direction:row}
+.aria-msg-user{flex-direction:row-reverse}
+.aria-avatar{
+  width:26px;height:26px;border-radius:50%;flex-shrink:0;
+  background:rgba(255,215,0,.1);border:1px solid rgba(255,215,0,.28);
+  display:flex;align-items:center;justify-content:center;
+}
+.aria-bubble{max-width:80%;padding:8px 12px;font-size:13px;line-height:1.5;word-break:break-word}
+.aria-bubble-ai{
+  background:#141428;color:rgba(255,255,255,.88);
+  border:1px solid rgba(255,215,0,.07);border-radius:4px 13px 13px 13px;
+}
+.aria-bubble-user{background:#FFD700;color:#111;font-weight:500;border-radius:13px 4px 13px 13px}
+.aria-typing{display:flex;gap:5px;align-items:center;padding:2px 0}
+.aria-typing span{
+  width:7px;height:7px;border-radius:50%;background:#FFD700;opacity:.4;
+  animation:aria-dot 1.2s infinite;
+}
+.aria-typing span:nth-child(2){animation-delay:.2s}
+.aria-typing span:nth-child(3){animation-delay:.4s}
+@keyframes aria-dot{
+  0%,80%,100%{transform:scale(1);opacity:.4}
+  40%{transform:scale(1.35);opacity:1}
+}
+#ariaChips{display:flex;gap:5px;padding:7px 13px 3px;overflow-x:auto;flex-shrink:0}
+#ariaChips::-webkit-scrollbar{display:none}
+.aria-chip{
+  background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.18);
+  color:rgba(255,215,0,.75);border-radius:20px;padding:4px 11px;
+  font-size:11px;font-family:'Rajdhani',sans-serif;font-weight:600;
+  white-space:nowrap;cursor:pointer;flex-shrink:0;transition:all .15s;
+}
+.aria-chip:hover{background:rgba(255,215,0,.14);border-color:rgba(255,215,0,.5);color:#FFD700}
+#ariaInputRow{
+  display:flex;align-items:center;gap:8px;
+  padding:9px 13px 13px;border-top:1px solid rgba(255,215,0,.08);flex-shrink:0;
+}
+#ariaInputField{
+  flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,215,0,.18);
+  border-radius:22px;padding:8px 15px;color:#fff;font-size:13px;
+  font-family:'Inter',sans-serif;outline:none;transition:border-color .2s;
+}
+#ariaInputField::placeholder{color:rgba(255,255,255,.27)}
+#ariaInputField:focus{border-color:rgba(255,215,0,.42)}
+#ariaSendBtn{
+  width:36px;height:36px;border-radius:50%;background:#FFD700;border:none;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:transform .15s,opacity .15s;padding:0;
+}
+#ariaSendBtn:hover{transform:scale(1.09)}
+#ariaSendBtn:disabled{opacity:.38;transform:none;cursor:default}
+@media(max-width:420px){
+  #ariaPanel{right:8px;left:8px;width:auto;bottom:80px;height:480px}
+  #ariaBtnFloat{bottom:16px;right:16px}
+}
+</style>
+
+<button id="ariaBtnFloat" onclick="toggleAria()" title="ARIA · Asistente de Vuelo IA" aria-label="Abrir asistente ARIA">
+  <svg width="28" height="28" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+    <rect x="30" y="30" width="20" height="20" rx="4" fill="#FFD700"/>
+    <circle cx="40" cy="40" r="4" fill="#111" stroke="#FFD700" stroke-width="1"/>
+    <circle cx="40" cy="36" r="3" fill="#FFD700"/>
+    <line x1="30" y1="30" x2="14" y2="14" stroke="#FFD700" stroke-width="2.5" stroke-linecap="round"/>
+    <ellipse cx="14" cy="14" rx="8" ry="2.5" fill="#FFD700" opacity=".7" transform="rotate(-45 14 14)"/>
+    <line x1="50" y1="30" x2="66" y2="14" stroke="#FFD700" stroke-width="2.5" stroke-linecap="round"/>
+    <ellipse cx="66" cy="14" rx="8" ry="2.5" fill="#FFD700" opacity=".7" transform="rotate(45 66 14)"/>
+    <line x1="30" y1="50" x2="14" y2="66" stroke="#FFD700" stroke-width="2.5" stroke-linecap="round"/>
+    <ellipse cx="14" cy="66" rx="8" ry="2.5" fill="#FFD700" opacity=".7" transform="rotate(45 14 66)"/>
+    <line x1="50" y1="50" x2="66" y2="66" stroke="#FFD700" stroke-width="2.5" stroke-linecap="round"/>
+    <ellipse cx="66" cy="66" rx="8" ry="2.5" fill="#FFD700" opacity=".7" transform="rotate(-45 66 66)"/>
+  </svg>
+</button>
+
+<div id="ariaPanel" role="dialog" aria-label="ARIA Asistente de Vuelo">
+  <div id="ariaHeader">
+    <div class="aria-hdr-left">
+      <div class="aria-hdr-icon">
+        <svg width="18" height="18" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+          <rect x="30" y="30" width="20" height="20" rx="4" fill="#FFD700"/>
+          <line x1="30" y1="30" x2="14" y2="14" stroke="#FFD700" stroke-width="3" stroke-linecap="round"/>
+          <ellipse cx="14" cy="14" rx="7" ry="2" fill="#FFD700" opacity=".7" transform="rotate(-45 14 14)"/>
+          <line x1="50" y1="30" x2="66" y2="14" stroke="#FFD700" stroke-width="3" stroke-linecap="round"/>
+          <ellipse cx="66" cy="14" rx="7" ry="2" fill="#FFD700" opacity=".7" transform="rotate(45 66 14)"/>
+          <line x1="30" y1="50" x2="14" y2="66" stroke="#FFD700" stroke-width="3" stroke-linecap="round"/>
+          <ellipse cx="14" cy="66" rx="7" ry="2" fill="#FFD700" opacity=".7" transform="rotate(45 14 66)"/>
+          <line x1="50" y1="50" x2="66" y2="66" stroke="#FFD700" stroke-width="3" stroke-linecap="round"/>
+          <ellipse cx="66" cy="66" rx="7" ry="2" fill="#FFD700" opacity=".7" transform="rotate(-45 66 66)"/>
+        </svg>
+      </div>
+      <div>
+        <div class="aria-hdr-title">ARIA · Asistente de Vuelo <span class="aria-badge-ia">IA</span></div>
+        <div class="aria-hdr-sub">GEONEX AERIAL</div>
+      </div>
+    </div>
+    <button id="ariaCloseBtn" onclick="toggleAria()" aria-label="Cerrar">✕</button>
+  </div>
+  <div id="ariaMessages"></div>
+  <div id="ariaChips">
+    <button class="aria-chip" onclick="ariaSendChip('¿Puedo volar hoy?')">¿Puedo volar hoy?</button>
+    <button class="aria-chip" onclick="ariaSendChip('Altura óptima para fotogrametría')">Altura para fotogrametría</button>
+    <button class="aria-chip" onclick="ariaSendChip('Regulaciones AFAC México')">Regulaciones AFAC</button>
+  </div>
+  <div id="ariaInputRow">
+    <input id="ariaInputField" type="text" placeholder="Pregúntale a ARIA…"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();ariaSend()}"
+      autocomplete="off"/>
+    <button id="ariaSendBtn" onclick="ariaSend()" aria-label="Enviar">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+        <path d="M22 2L11 13" stroke="#111" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#111" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div id="toast"></div>
 
@@ -3082,6 +3261,139 @@ window.addEventListener('resize',()=>{
   if(sub) sub.style.display = window.innerWidth>480?'block':'none';
 });
 window.dispatchEvent(new Event('resize'));
+</script>
+
+<script>
+// ── ARIA · ASISTENTE DE VUELO IA ──────────────────────────────
+'use strict';
+
+const ARIA_KEY   = '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';
+const ARIA_MODEL = 'claude-sonnet-4-20250514';
+const ARIA_SYS   = 'Eres ARIA, asistente de vuelo especializada de Geonex Aerial. Ayudas a pilotos profesionales de drones DJI en México. Tienes conocimiento experto en: fotogrametría, topografía con drones, regulaciones de aviación en México (AFAC), meteorología para vuelos, especificaciones técnicas de drones DJI, planificación de misiones, procesamiento en Pix4D y Agisoft Metashape. Responde siempre en español, de forma concisa y profesional. El piloto principal usa DJI Air 3S y DJI Mavic 2S.';
+const ARIA_WELCOME = '¡Hola! Soy ARIA, tu asistente de vuelo de Geonex. Puedo ayudarte con condiciones meteorológicas, planificación de misiones, regulaciones de vuelo en México y recomendaciones técnicas para tu drone. ¿En qué te puedo ayudar hoy?';
+
+const _ARIA_DRONE_SVG = `<svg width="14" height="14" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+  <rect x="30" y="30" width="20" height="20" rx="4" fill="#FFD700"/>
+  <line x1="30" y1="30" x2="14" y2="14" stroke="#FFD700" stroke-width="3" stroke-linecap="round"/>
+  <ellipse cx="14" cy="14" rx="7" ry="2" fill="#FFD700" opacity=".7" transform="rotate(-45 14 14)"/>
+  <line x1="50" y1="30" x2="66" y2="14" stroke="#FFD700" stroke-width="3" stroke-linecap="round"/>
+  <ellipse cx="66" cy="14" rx="7" ry="2" fill="#FFD700" opacity=".7" transform="rotate(45 66 14)"/>
+  <line x1="30" y1="50" x2="14" y2="66" stroke="#FFD700" stroke-width="3" stroke-linecap="round"/>
+  <ellipse cx="14" cy="66" rx="7" ry="2" fill="#FFD700" opacity=".7" transform="rotate(45 14 66)"/>
+  <line x1="50" y1="50" x2="66" y2="66" stroke="#FFD700" stroke-width="3" stroke-linecap="round"/>
+  <ellipse cx="66" cy="66" rx="7" ry="2" fill="#FFD700" opacity=".7" transform="rotate(-45 66 66)"/>
+</svg>`;
+
+let ariaOpen   = false;
+let ariaInited = false;
+let ariaBusy   = false;
+let ariaHistory = [];
+
+function toggleAria(){
+  ariaOpen = !ariaOpen;
+  document.getElementById('ariaPanel').classList.toggle('aria-open', ariaOpen);
+  if(ariaOpen && !ariaInited){
+    ariaInited = true;
+    _ariaAddBubble('assistant', ARIA_WELCOME);
+  }
+  if(ariaOpen) setTimeout(()=>{ const f=document.getElementById('ariaInputField'); if(f) f.focus(); }, 280);
+}
+
+function _ariaEsc(t){
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+function _ariaAddBubble(role, text){
+  const wrap = document.getElementById('ariaMessages');
+  if(!wrap) return;
+  const div = document.createElement('div');
+  div.className = 'aria-msg aria-msg-' + (role==='assistant' ? 'ai' : 'user');
+  if(role === 'assistant'){
+    div.innerHTML =
+      `<div class="aria-avatar">${_ARIA_DRONE_SVG}</div>` +
+      `<div class="aria-bubble aria-bubble-ai">${_ariaEsc(text)}</div>`;
+  } else {
+    div.innerHTML = `<div class="aria-bubble aria-bubble-user">${_ariaEsc(text)}</div>`;
+  }
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function _ariaShowTyping(){
+  const wrap = document.getElementById('ariaMessages');
+  if(!wrap) return;
+  const div = document.createElement('div');
+  div.id = 'ariaTypingBubble';
+  div.className = 'aria-msg aria-msg-ai';
+  div.innerHTML =
+    `<div class="aria-avatar">${_ARIA_DRONE_SVG}</div>` +
+    `<div class="aria-bubble aria-bubble-ai aria-typing"><span></span><span></span><span></span></div>`;
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function _ariaHideTyping(){
+  const el = document.getElementById('ariaTypingBubble');
+  if(el) el.remove();
+}
+
+async function ariaSend(){
+  const inp  = document.getElementById('ariaInputField');
+  const text = inp ? inp.value.trim() : '';
+  if(!text || ariaBusy) return;
+  inp.value = '';
+  ariaBusy  = true;
+  const btn = document.getElementById('ariaSendBtn');
+  if(btn) btn.disabled = true;
+
+  _ariaAddBubble('user', text);
+  ariaHistory.push({role:'user', content:text});
+  _ariaShowTyping();
+
+  try{
+    const reply = await _ariaCall(ariaHistory);
+    _ariaHideTyping();
+    ariaHistory.push({role:'assistant', content:reply});
+    _ariaAddBubble('assistant', reply);
+  } catch(err){
+    _ariaHideTyping();
+    _ariaAddBubble('assistant', '⚠️ ' + (err.message || 'Error de conexión. Intenta nuevamente.'));
+  }
+
+  ariaBusy = false;
+  if(btn) btn.disabled = false;
+  if(inp) inp.focus();
+}
+
+function ariaSendChip(text){
+  const inp = document.getElementById('ariaInputField');
+  if(inp){ inp.value = text; ariaSend(); }
+}
+
+async function _ariaCall(messages){
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ARIA_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: ARIA_MODEL,
+      max_tokens: 1024,
+      system: ARIA_SYS,
+      messages
+    })
+  });
+  if(!res.ok){
+    let msg = 'Error ' + res.status;
+    try{ const j = await res.json(); msg = j.error?.message || msg; }catch(_){}
+    throw new Error(msg);
+  }
+  const data = await res.json();
+  return data.content[0].text;
+}
 </script>
 </body>
 </html>
