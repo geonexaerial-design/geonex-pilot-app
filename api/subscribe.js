@@ -10,27 +10,35 @@ export default async function handler(req, res) {
   const ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
 
   const plans = {
-    mensual: {
+    pro_mensual: {
       reason: 'Geonex Aerial Pro Mensual',
       auto_recurring: {
         frequency: 1,
         frequency_type: 'months',
         transaction_amount: 250,
-        currency_id: 'MXN'
+        currency_id: 'MXN',
+        free_trial: {
+          frequency: 3,
+          frequency_type: 'months'
+        }
       },
-      back_url: 'https://geonexaerial.com/?mp_status=success',
-      payer_email: payer_email || 'test_user@test.com',
+      payment_methods_allowed: {
+        payment_types: [{ id: 'credit_card' }]
+      },
+      back_url: 'https://geonexaerial.com/?mp_status=success'
     },
-    anual: {
+    pro_anual: {
       reason: 'Geonex Aerial Pro Anual',
       auto_recurring: {
-        frequency: 1,
+        frequency: 12,
         frequency_type: 'months',
         transaction_amount: 3000,
         currency_id: 'MXN'
       },
-      back_url: 'https://geonexaerial.com/?mp_status=success',
-      payer_email: payer_email || 'test_user@test.com',
+      payment_methods_allowed: {
+        payment_types: [{ id: 'credit_card' }]
+      },
+      back_url: 'https://geonexaerial.com/?mp_status=success'
     }
   };
 
