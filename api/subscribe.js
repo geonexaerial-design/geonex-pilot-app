@@ -3,6 +3,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  console.log('MP Token exists:', !!process.env.MP_ACCESS_TOKEN);
+  console.log('Request type:', req.body.type);
+
   const { type } = req.body;
   const ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
 
@@ -44,7 +47,7 @@ export default async function handler(req, res) {
     if (data.init_point) {
       return res.status(200).json({ init_point: data.init_point });
     } else {
-      return res.status(400).json({ error: data });
+      return res.status(400).json({ error: data, status: response.status, message: JSON.stringify(data) });
     }
   } catch (error) {
     return res.status(500).json({ error: error.message });
