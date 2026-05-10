@@ -3528,10 +3528,12 @@ function renderPlanesSection(){
 
 async function subscribeMp(type) {
   try {
+    const user = firebase.auth().currentUser;
+    const payer_email = user ? user.email : 'test_user@test.com';
     const res = await fetch('/api/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type })
+      body: JSON.stringify({ type, payer_email })
     });
     const data = await res.json();
     if (data.init_point) {

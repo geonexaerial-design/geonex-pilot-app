@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   console.log('MP Token exists:', !!process.env.MP_ACCESS_TOKEN);
   console.log('Request type:', req.body.type);
 
-  const { type } = req.body;
+  const { type, payer_email } = req.body;
   const ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
 
   const plans = {
@@ -19,6 +19,7 @@ export default async function handler(req, res) {
         currency_id: 'MXN'
       },
       back_url: 'https://geonexaerial.com/?mp_status=success',
+      payer_email: payer_email || 'test_user@test.com',
     },
     anual: {
       reason: 'Geonex Aerial Pro Anual',
@@ -29,6 +30,7 @@ export default async function handler(req, res) {
         currency_id: 'MXN'
       },
       back_url: 'https://geonexaerial.com/?mp_status=success',
+      payer_email: payer_email || 'test_user@test.com',
     }
   };
 
