@@ -170,6 +170,32 @@ a{color:var(--acc);text-decoration:none}
 .cl-text{font-size:13px;line-height:1.3}
 .prog-track{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin:6px 0}
 .prog-fill{height:100%;background:var(--acc);border-radius:2px;transition:width .3s}
+/* ── PLANES ── */
+.plan-grid{display:grid;grid-template-columns:1fr;gap:16px;padding:4px 0 8px}
+.plan-card{background:var(--card);border:1px solid var(--brd);border-radius:16px;padding:20px;position:relative;overflow:hidden;transition:border-color .2s,transform .2s}
+.plan-card:hover{transform:translateY(-2px)}
+.plan-card.plan-featured{border-color:rgba(255,215,0,.45);background:linear-gradient(160deg,rgba(255,215,0,.04),var(--card))}
+.plan-badge{position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;letter-spacing:.7px;padding:4px 10px;border-radius:20px;text-transform:uppercase;white-space:nowrap}
+.plan-badge.badge-popular{background:rgba(255,215,0,.15);color:#FFD700;border:1px solid rgba(255,215,0,.4)}
+.plan-badge.badge-best{background:rgba(76,175,80,.15);color:#4caf50;border:1px solid rgba(76,175,80,.4)}
+.plan-name{font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:var(--txt);margin-bottom:4px}
+.plan-price{margin:12px 0}
+.plan-price .p-amount{font-family:'Rajdhani',sans-serif;font-size:38px;font-weight:700;color:var(--txt);line-height:1}
+.plan-price .p-currency{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;vertical-align:top;margin-top:8px;display:inline-block;line-height:1}
+.plan-price .p-period{font-size:12px;color:var(--txt2);margin-top:6px}
+.plan-price .p-was{font-size:12px;color:var(--txt2);text-decoration:line-through;margin-right:6px}
+.plan-divider{height:1px;background:var(--brd);margin:14px 0}
+.plan-feat{list-style:none;padding:0;margin:0 0 18px}
+.plan-feat li{font-size:13px;color:var(--txt2);padding:5px 0;display:flex;align-items:flex-start;gap:8px;line-height:1.4}
+.plan-feat li.feat-ok{color:var(--txt)}
+.plan-feat li.feat-ok::before{content:'✓';color:#4caf50;font-weight:700;flex-shrink:0;margin-top:1px}
+.plan-feat li.feat-no::before{content:'✗';color:var(--txt2);flex-shrink:0;margin-top:1px;opacity:.5}
+.plan-btn{width:100%;padding:12px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;letter-spacing:.8px;cursor:pointer;border:none;transition:opacity .2s,transform .15s}
+.plan-btn:hover:not(:disabled){opacity:.85;transform:scale(1.01)}
+.plan-btn:disabled{cursor:default;opacity:.6}
+.plan-btn.btn-free{background:var(--brd);color:var(--txt2)}
+.plan-btn.btn-pro{background:linear-gradient(135deg,#FFD700,#FFA500);color:#000}
+.plan-current{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#4caf50;font-weight:700;font-family:'Rajdhani',sans-serif;padding:6px 0;letter-spacing:.3px}
 /* ── PLANNER ── */
 .plan-ctrl{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
 .mode-btn.active-mode{background:var(--acc);color:#000;border-color:var(--acc);border-radius:0}
@@ -721,6 +747,14 @@ a{color:var(--acc);text-decoration:none}
   </div>
 </section>
 
+<!-- ⑬ PLANES -->
+<section id="sec-planes" class="sec">
+  <div class="sec-hdr"><span style="font-size:22px">💎</span><h2>Planes</h2></div>
+  <div id="planesSectionContent">
+    <div style="color:var(--txt2);text-align:center;padding:40px 0;font-size:13px">Cargando planes…</div>
+  </div>
+</section>
+
 <!-- ADMIN PANEL — solo visible para geonexaerial@gmail.com -->
 <section id="sec-admin" class="sec">
   <div class="sec-hdr"><span style="font-size:22px">🛡️</span><h2>Administración</h2></div>
@@ -1033,6 +1067,7 @@ function initAuth(){
             rol:        'admin',
             ultimoLogin: firebase.firestore.FieldValue.serverTimestamp()
           }, { merge: true });
+          window._userPlan = 'pro';
           console.log('[Geonex] Admin doc actualizado en Firestore');
         } else {
           const snap = await ref.get();
@@ -1045,6 +1080,7 @@ function initAuth(){
               activo:        true,
               fechaRegistro: firebase.firestore.FieldValue.serverTimestamp()
             });
+            window._userPlan = 'free';
             console.log('[Geonex] Documento de usuario creado en Firestore');
           } else {
             const data = snap.data();
@@ -1054,10 +1090,12 @@ function initAuth(){
               await auth.signOut();
               return;
             }
+            window._userPlan = data.plan || 'free';
             await ref.update({ ultimoLogin: firebase.firestore.FieldValue.serverTimestamp() });
             console.log('[Geonex] ultimoLogin actualizado en Firestore');
           }
         }
+        handleMpReturn();
       } catch(e){
         console.warn('[Geonex] Firestore user doc error:', e.code, e.message);
       }
@@ -1506,6 +1544,7 @@ const NAV = [
   {id:'gsd',          lb:'Calc. GSD'},
   {id:'compartir',    lb:'Compartir'},
   {id:'oscuro',       lb:'Ajustes'},
+  {id:'planes',       lb:'Planes'},
   {id:'admin',        lb:'Admin'},
 ];
 const NAV_ICONS = {
@@ -1521,6 +1560,7 @@ const NAV_ICONS = {
   gsd:`<svg class="nav-ic-svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="16" height="11" rx="2"/><circle cx="10" cy="12" r="3"/><path d="M7 6V5a1 1 0 011-1h4a1 1 0 011 1v1"/><circle cx="15.5" cy="8.5" r=".75" fill="currentColor" stroke="none"/></svg>`,
   compartir:`<svg class="nav-ic-svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v12M6 6l4-4 4 4"/><path d="M5 10H4a2 2 0 00-2 2v5a2 2 0 002 2h12a2 2 0 002-2v-5a2 2 0 00-2-2h-1"/></svg>`,
   oscuro:`<svg class="nav-ic-svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="10" cy="10" r="3"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="10" y1="16" x2="10" y2="18"/><line x1="2" y1="10" x2="4" y2="10"/><line x1="16" y1="10" x2="18" y2="10"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="14.36" y1="14.36" x2="15.78" y2="15.78"/><line x1="4.22" y1="15.78" x2="5.64" y2="14.36"/><line x1="14.36" y1="5.64" x2="15.78" y2="4.22"/></svg>`,
+  planes:`<svg class="nav-ic-svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2l1.5 4.5H16l-3.5 2.5 1.5 4.5L10 11l-4 2.5 1.5-4.5L4 6.5h4.5z"/></svg>`,
   admin:`<svg class="nav-ic-svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2l7 3v5c0 4.2-3.1 7.4-7 8.5C6.1 17.4 3 14.2 3 10V5z"/><polyline points="7.5,10.5 9.5,12.5 13,8.5"/></svg>`,
 };
 
@@ -1576,7 +1616,7 @@ function buildNav(){
     ['inicio','checklist','planificador','bitacora'],
     ['pronostico','zonas','estadisticas'],
     ['bateria','espacio','gsd'],
-    ['compartir','oscuro'],
+    ['compartir','oscuro','planes'],
   ];
   // El ítem Admin solo se agrega si el usuario es administrador
   if(localStorage.getItem('adminMode')==='true') groups.push(['admin']);
@@ -1599,7 +1639,7 @@ const SEC_NAMES = {
   inicio:'INICIO', checklist:'CHECKLIST', planificador:'PLANIFICADOR',
   bitacora:'BITÁCORA', pronostico:'PRONÓSTICO', zonas:'ZONAS',
   estadisticas:'ESTADÍSTICAS', bateria:'BATERÍA', espacio:'ESPACIO AÉREO',
-  gsd:'CALC. GSD', compartir:'COMPARTIR', oscuro:'AJUSTES', admin:'ADMIN'
+  gsd:'CALC. GSD', compartir:'COMPARTIR', oscuro:'AJUSTES', planes:'PLANES', admin:'ADMIN'
 };
 function showSec(id){
   S.sec = id;
@@ -1626,6 +1666,7 @@ function showSec(id){
   if(id==='estadisticas') buildCharts();
   if(id==='pronostico') renderForecast();
   if(id==='gsd') calcGSD();
+  if(id==='planes') renderPlanesSection();
   if(id==='admin') loadAdminPanel();
 }
 
@@ -3368,6 +3409,195 @@ async function ariaSend(){
 function ariaSendChip(text){
   const inp = document.getElementById('ariaInputField');
   if(inp){ inp.value = text; ariaSend(); }
+}
+
+// ── PLANES & MERCADOPAGO ────────────────────────────────────────
+const MP_PUBLIC_KEY    = 'TEST-ce30d531-37f2-4313-b4cb-48c59ce16681';
+const MP_ACCESS_TOKEN  = '';
+
+function renderPlanesSection(){
+  const el = document.getElementById('planesSectionContent');
+  if(!el) return;
+  const userPlan = window._userPlan || 'free';
+  const isPro = userPlan === 'pro';
+
+  const PLANS = [
+    {
+      id:'free', name:'Free',
+      priceHtml:`<span class="p-currency">$</span><span class="p-amount">0</span>`,
+      period:'Siempre gratis',
+      badge:null, featured:false,
+      feats:[
+        {ok:true,  t:'Planificador de misiones básico'},
+        {ok:true,  t:'Pronóstico meteorológico'},
+        {ok:true,  t:'Bitácora de vuelos'},
+        {ok:true,  t:'Hasta 3 zonas guardadas'},
+        {ok:false, t:'Exportar KMZ ilimitado'},
+        {ok:false, t:'ARIA AI Assistant'},
+        {ok:false, t:'Overlap avanzado en misiones'},
+        {ok:false, t:'Soporte prioritario'},
+      ]
+    },
+    {
+      id:'pro_mensual', name:'Pro Mensual',
+      priceHtml:`<span class="p-currency">$</span><span class="p-amount">500</span>`,
+      period:'/mes · primeros 3 meses a $250',
+      badge:{txt:'MÁS POPULAR', cls:'badge-popular'}, featured:true,
+      feats:[
+        {ok:true, t:'Todo lo incluido en Free'},
+        {ok:true, t:'Zonas ilimitadas'},
+        {ok:true, t:'Exportar KMZ ilimitado'},
+        {ok:true, t:'ARIA AI Assistant completo'},
+        {ok:true, t:'Overlap frontal y lateral'},
+        {ok:true, t:'Estadísticas avanzadas'},
+        {ok:true, t:'Soporte prioritario'},
+        {ok:true, t:'Actualizaciones anticipadas'},
+      ]
+    },
+    {
+      id:'pro_anual', name:'Pro Anual',
+      priceHtml:`<span class="p-was">$6,000</span><span class="p-currency">$</span><span class="p-amount">3,000</span>`,
+      period:'/año · equivale a $250/mes',
+      badge:{txt:'MEJOR VALOR · AHORRA $3,000', cls:'badge-best'}, featured:true,
+      feats:[
+        {ok:true, t:'Todo lo incluido en Pro Mensual'},
+        {ok:true, t:'50% de descuento vs mensual'},
+        {ok:true, t:'Acceso anticipado a nuevas funciones'},
+        {ok:true, t:'Soporte VIP dedicado'},
+        {ok:true, t:'Exportación multi-formato'},
+        {ok:true, t:'Análisis de vuelo avanzado'},
+        {ok:true, t:'Facturación electrónica'},
+        {ok:true, t:'Integración con DJI FlightHub'},
+      ]
+    },
+  ];
+
+  let html = `
+    <div style="text-align:center;padding:4px 0 20px">
+      <div style="font-size:13px;color:var(--txt2)">
+        Plan actual:&nbsp;<strong style="color:${isPro?'#FFD700':'var(--txt)'}">
+          ${isPro?'💎 PRO':'FREE'}
+        </strong>
+      </div>
+    </div>
+    <div class="plan-grid">
+  `;
+
+  PLANS.forEach(p=>{
+    const isCurrent = (p.id==='free' && !isPro) || (p.id!=='free' && isPro);
+    let btnHtml;
+    if(p.id==='free'){
+      btnHtml = isCurrent
+        ? `<div class="plan-current">✓ Tu plan actual</div>`
+        : `<button class="plan-btn btn-free" disabled>Plan básico</button>`;
+    } else {
+      btnHtml = isCurrent
+        ? `<div class="plan-current">✓ Plan activo (Pro)</div>`
+        : `<button class="plan-btn btn-pro" onclick="subscribeMp('${p.id}')">Suscribirse →</button>`;
+    }
+
+    html += `
+      <div class="plan-card${p.featured?' plan-featured':''}">
+        ${p.badge?`<div class="plan-badge ${p.badge.cls}">${p.badge.txt}</div>`:''}
+        <div class="plan-name">${p.name}</div>
+        <div class="plan-price">
+          <div style="line-height:1">${p.priceHtml}</div>
+          <div class="p-period">${p.period}</div>
+        </div>
+        <div class="plan-divider"></div>
+        <ul class="plan-feat">
+          ${p.feats.map(f=>`<li class="${f.ok?'feat-ok':'feat-no'}">${f.t}</li>`).join('')}
+        </ul>
+        ${btnHtml}
+      </div>
+    `;
+  });
+
+  html += `</div>
+    <div style="text-align:center;padding:16px 0 4px;font-size:11px;color:var(--txt2);line-height:1.8">
+      Pagos procesados de forma segura por MercadoPago.<br>
+      Cancela en cualquier momento desde tu cuenta de MercadoPago.
+    </div>
+  `;
+  el.innerHTML = html;
+}
+
+async function subscribeMp(planType){
+  const user = firebase.auth().currentUser;
+  if(!user){ showToast('Inicia sesión para suscribirte'); return; }
+
+  if(!MP_ACCESS_TOKEN){
+    showToast('Integración de pagos en configuración. Contacta a soporte.');
+    return;
+  }
+
+  showToast('Redirigiendo a MercadoPago…');
+
+  const isAnual  = planType === 'pro_anual';
+  const reason   = isAnual ? 'Geonex Pro Anual' : 'Geonex Pro Mensual';
+  const amount   = isAnual ? 3000 : 500;
+  const backBase = window.location.href.split('?')[0];
+
+  const body = {
+    reason,
+    auto_recurring:{
+      frequency:      1,
+      frequency_type: 'months',
+      transaction_amount: amount,
+      currency_id:    'MXN',
+    },
+    back_url:           backBase + '?mp_status=success&plan=' + planType,
+    payer_email:        user.email,
+    external_reference: user.uid + '_' + planType,
+  };
+
+  try{
+    const res = await fetch('https://api.mercadopago.com/preapproval', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer ' + MP_ACCESS_TOKEN,
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if(data.init_point){
+      window.location.href = data.init_point;
+    } else {
+      showToast('Error MP: ' + (data.message || 'intenta nuevamente'));
+    }
+  } catch(e){
+    showToast('Error de conexión con MercadoPago');
+  }
+}
+
+async function handleMpReturn(){
+  const params   = new URLSearchParams(window.location.search);
+  const mpStatus = params.get('mp_status');
+  if(!mpStatus) return;
+
+  history.replaceState({}, '', window.location.pathname);
+
+  const user = firebase.auth().currentUser;
+
+  if(mpStatus === 'success'){
+    if(user && db){
+      try{
+        await db.collection('usuarios').doc(user.uid).update({ plan:'pro' });
+        window._userPlan = 'pro';
+        showToast('¡Suscripción Pro activada exitosamente!');
+      } catch(e){
+        showToast('Error al activar plan. Contacta a soporte.');
+      }
+    }
+    showSec('planes');
+  } else if(mpStatus === 'failure'){
+    showToast('Pago no completado. Intenta nuevamente.');
+    showSec('planes');
+  } else if(mpStatus === 'pending'){
+    showToast('Pago pendiente de confirmación por MercadoPago.');
+    showSec('planes');
+  }
 }
 
 async function _ariaCall(messages){
