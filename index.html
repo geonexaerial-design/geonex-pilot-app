@@ -171,30 +171,32 @@ a{color:var(--acc);text-decoration:none}
 .prog-track{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin:6px 0}
 .prog-fill{height:100%;background:var(--acc);border-radius:2px;transition:width .3s}
 /* ── PLANES ── */
-.plan-grid{display:grid;grid-template-columns:1fr;gap:16px;padding:4px 0 8px}
-.plan-card{background:var(--card);border:1px solid var(--brd);border-radius:16px;padding:20px;position:relative;overflow:hidden;transition:border-color .2s,transform .2s}
-.plan-card:hover{transform:translateY(-2px)}
-.plan-card.plan-featured{border-color:rgba(255,215,0,.45);background:linear-gradient(160deg,rgba(255,215,0,.04),var(--card))}
-.plan-badge{position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;letter-spacing:.7px;padding:4px 10px;border-radius:20px;text-transform:uppercase;white-space:nowrap}
-.plan-badge.badge-popular{background:rgba(255,215,0,.15);color:#FFD700;border:1px solid rgba(255,215,0,.4)}
-.plan-badge.badge-best{background:rgba(76,175,80,.15);color:#4caf50;border:1px solid rgba(76,175,80,.4)}
+.plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;padding:4px 0 8px;align-items:center}
+@media(max-width:720px){.plan-grid{grid-template-columns:1fr}}
+.plan-card{background:#0d0d1a;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:32px;transition:box-shadow .2s,transform .2s;display:flex;flex-direction:column}
+.plan-card:hover{box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.plan-card.plan-popular{border:2px solid #FFD700;transform:scale(1.03);box-shadow:0 8px 40px rgba(255,215,0,.12)}
+.plan-badge-wrap{height:28px;display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+.plan-badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.8px;padding:5px 14px;border-radius:20px;text-transform:uppercase;white-space:nowrap}
+.plan-badge.badge-popular{background:rgba(255,215,0,.15);color:#FFD700;border:1px solid rgba(255,215,0,.5)}
+.plan-badge.badge-best{background:rgba(76,175,80,.15);color:#4caf50;border:1px solid rgba(76,175,80,.5)}
 .plan-name{font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:var(--txt);margin-bottom:4px}
 .plan-price{margin:12px 0}
-.plan-price .p-amount{font-family:'Rajdhani',sans-serif;font-size:38px;font-weight:700;color:var(--txt);line-height:1}
-.plan-price .p-currency{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;vertical-align:top;margin-top:8px;display:inline-block;line-height:1}
+.plan-price .p-amount{font-family:'Rajdhani',sans-serif;font-size:40px;font-weight:700;color:var(--txt);line-height:1}
+.plan-price .p-currency{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;vertical-align:top;margin-top:8px;display:inline-block;line-height:1}
 .plan-price .p-period{font-size:12px;color:var(--txt2);margin-top:6px}
 .plan-price .p-was{font-size:12px;color:var(--txt2);text-decoration:line-through;margin-right:6px}
-.plan-divider{height:1px;background:var(--brd);margin:14px 0}
-.plan-feat{list-style:none;padding:0;margin:0 0 18px}
+.plan-divider{height:1px;background:rgba(255,255,255,.07);margin:16px 0}
+.plan-feat{list-style:none;padding:0;margin:0 0 20px;flex:1}
 .plan-feat li{font-size:13px;color:var(--txt2);padding:5px 0;display:flex;align-items:flex-start;gap:8px;line-height:1.4}
 .plan-feat li.feat-ok{color:var(--txt)}
 .plan-feat li.feat-ok::before{content:'✓';color:#4caf50;font-weight:700;flex-shrink:0;margin-top:1px}
-.plan-feat li.feat-no::before{content:'✗';color:var(--txt2);flex-shrink:0;margin-top:1px;opacity:.5}
-.plan-btn{width:100%;padding:12px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;letter-spacing:.8px;cursor:pointer;border:none;transition:opacity .2s,transform .15s}
+.plan-feat li.feat-no::before{content:'✗';color:var(--txt2);flex-shrink:0;margin-top:1px;opacity:.4}
+.plan-btn{width:100%;padding:13px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;letter-spacing:.8px;cursor:pointer;border:none;transition:opacity .2s,transform .15s}
 .plan-btn:hover:not(:disabled){opacity:.85;transform:scale(1.01)}
 .plan-btn:disabled{cursor:default;opacity:.6}
-.plan-btn.btn-free{background:var(--brd);color:var(--txt2)}
-.plan-btn.btn-pro{background:linear-gradient(135deg,#FFD700,#FFA500);color:#000}
+.plan-btn.btn-free{background:rgba(255,255,255,.07);color:var(--txt2)}
+.plan-btn.btn-pro{background:#FFD700;color:#000}
 .plan-current{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#4caf50;font-weight:700;font-family:'Rajdhani',sans-serif;padding:6px 0;letter-spacing:.3px}
 /* ── PLANNER ── */
 .plan-ctrl{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
@@ -3485,6 +3487,7 @@ function renderPlanesSection(){
 
   PLANS.forEach(p=>{
     const isCurrent = (p.id==='free' && !isPro) || (p.id!=='free' && isPro);
+    const isPopular = p.id === 'pro_mensual';
     let btnHtml;
     if(p.id==='free'){
       btnHtml = isCurrent
@@ -3497,8 +3500,10 @@ function renderPlanesSection(){
     }
 
     html += `
-      <div class="plan-card${p.featured?' plan-featured':''}">
-        ${p.badge?`<div class="plan-badge ${p.badge.cls}">${p.badge.txt}</div>`:''}
+      <div class="plan-card${isPopular?' plan-popular':''}">
+        <div class="plan-badge-wrap">
+          ${p.badge?`<span class="plan-badge ${p.badge.cls}">${p.badge.txt}</span>`:''}
+        </div>
         <div class="plan-name">${p.name}</div>
         <div class="plan-price">
           <div style="line-height:1">${p.priceHtml}</div>
