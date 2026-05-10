@@ -1219,49 +1219,49 @@ const DRONES = {
     name:'DJI Air 3S', icon:IC.air3s, highlight:true,
     maxWind:12, maxGusts:15, minTemp:-10, maxTemp:40, flightTime:46,
     battery:4241, sensor:'1" CMOS', mp:50, focal:24,
-    sW:13.2, sH:8.8, imgW:8064, imgH:6048
+    sW:13.2, sH:8.8, imgW:8064, imgH:6048, pixelSize:2.4
   },
   mavic2s:{
     name:'DJI Mavic 2S', icon:IC.mavic2s, highlight:true,
     maxWind:10.7, maxGusts:12, minTemp:-10, maxTemp:40, flightTime:31,
     battery:3850, sensor:'1" CMOS', mp:20, focal:28,
-    sW:13.2, sH:8.8, imgW:5280, imgH:3956
+    sW:13.2, sH:8.8, imgW:5280, imgH:3956, pixelSize:2.4
   },
   air2s:{
     name:'DJI Air 2S', icon:IC.air2s, highlight:false,
     maxWind:10.7, maxGusts:12, minTemp:-10, maxTemp:40, flightTime:31,
     battery:3750, sensor:'1" CMOS', mp:20, focal:22,
-    sW:13.2, sH:8.8, imgW:5472, imgH:3648
+    sW:13.2, sH:8.8, imgW:5472, imgH:3648, pixelSize:2.4
   },
   mini4pro:{
     name:'DJI Mini 4 Pro', icon:IC.mini4pro, highlight:false,
     maxWind:10.7, maxGusts:12, minTemp:-10, maxTemp:40, flightTime:34,
     battery:2590, sensor:'1/1.3" CMOS', mp:48, focal:24,
-    sW:9.6, sH:7.2, imgW:8064, imgH:6048
+    sW:9.6, sH:7.2, imgW:8064, imgH:6048, pixelSize:2.4
   },
   mini3pro:{
     name:'DJI Mini 3 Pro', icon:IC.mini3pro, highlight:false,
     maxWind:10.7, maxGusts:12, minTemp:-10, maxTemp:40, flightTime:34,
     battery:2453, sensor:'1/1.3" CMOS', mp:48, focal:24,
-    sW:9.6, sH:7.2, imgW:8064, imgH:6048
+    sW:9.6, sH:7.2, imgW:8064, imgH:6048, pixelSize:2.4
   },
   mavic3pro:{
     name:'DJI Mavic 3 Pro', icon:IC.mavic3pro, highlight:false,
     maxWind:12, maxGusts:15, minTemp:-10, maxTemp:40, flightTime:43,
     battery:5000, sensor:'4/3" CMOS', mp:50, focal:24,
-    sW:17.3, sH:13.0, imgW:8192, imgH:6144
+    sW:17.3, sH:13.0, imgW:8192, imgH:6144, pixelSize:3.3
   },
   mavic3classic:{
     name:'DJI Mavic 3 Classic', icon:IC.mavic3classic, highlight:false,
     maxWind:12, maxGusts:15, minTemp:-10, maxTemp:40, flightTime:43,
     battery:5000, sensor:'4/3" CMOS', mp:20, focal:24,
-    sW:17.3, sH:13.0, imgW:5280, imgH:3956
+    sW:17.3, sH:13.0, imgW:5280, imgH:3956, pixelSize:3.3
   },
   phantom4rtk:{
     name:'DJI Phantom 4 RTK', icon:IC.phantom4rtk, highlight:false,
     maxWind:10, maxGusts:12, minTemp:-10, maxTemp:40, flightTime:30,
     battery:5870, sensor:'1" CMOS', mp:20, focal:24,
-    sW:13.2, sH:8.8, imgW:8000, imgH:6000
+    sW:13.2, sH:8.8, imgW:8000, imgH:6000, pixelSize:2.4, focalReal:8.8
   },
   phantom4prov2:{
     name:'DJI Phantom 4 Pro V2', icon:IC.phantom4prov2, highlight:false,
@@ -1479,6 +1479,8 @@ function setDrone(id){
   calcGSD();
   renderForecast();
   renderDroneCard();
+  updatePlannerGSD();
+  if(S.generatedWPs.length > 0) generateMission(true);
 }
 
 function renderDroneCard(){
@@ -1992,12 +1994,17 @@ function buildMissionConfig(){
     } else {
       inputHtml = `<input type="number" value="${val}" min="${item.min}" max="${item.max}" step="${item.step}" onchange="S.msnCfg.${item.key}=+this.value;autoRegenMission()"/>`;
     }
+    const badge = item.key === 'altitude'
+      ? `<div id="plannerGsdBadge" style="margin-top:5px"></div>`
+      : '';
     return `<div class="cfg-item">
       <div class="cfg-svg">${item.svg}</div>
       <label>${item.label}</label>
       ${inputHtml}
+      ${badge}
     </div>`;
   }).join('');
+  updatePlannerGSD();
 }
 
 // ── WAYPOINT VALIDATION ────────────────────────────────────────
@@ -2100,7 +2107,7 @@ function generateMission(silent){
       </div>
     </div>
     <div style="margin-top:8px;font-size:11px;color:var(--txt2);text-align:center;font-family:'Rajdhani',sans-serif;letter-spacing:.5px">
-      ALT ${S.msnCfg.altitude}m &nbsp;·&nbsp; VEL ${S.msnCfg.speed}m/s &nbsp;·&nbsp; OVL-F ${S.msnCfg.overlap}% &nbsp;·&nbsp; OVL-L ${S.msnCfg.overlapLat||70}%
+      ALT ${S.msnCfg.altitude}m &nbsp;·&nbsp; VEL ${S.msnCfg.speed}m/s &nbsp;·&nbsp; OVL-F ${S.msnCfg.overlap}% &nbsp;·&nbsp; OVL-L ${S.msnCfg.overlapLat||70}%${(()=>{const g=calcPlannerGSD();return g?' &nbsp;·&nbsp; GSD '+g.toFixed(2)+' cm/px':''})()}
     </div>
     ${removed>0?`<div style="margin-top:6px;font-size:11px;color:var(--warn);text-align:center;font-family:'Rajdhani',sans-serif;letter-spacing:.5px">⚠ ${removed} punto${removed>1?'s':''} duplicado${removed>1?'s':''} eliminado${removed>1?'s':''} · Ruta validada</div>`:''}
   `;
@@ -2108,7 +2115,32 @@ function generateMission(silent){
   if(!silent) toast(`Misión generada: ${wps.length} waypoints${removed>0?' ('+removed+' duplicados eliminados)':''}  ✓`,'ok');
 }
 
+function calcPlannerGSD(){
+  const d = DRONES[S.drone];
+  if(!d || !d.pixelSize) return null;
+  const focal = d.focalReal || d.focal;
+  return (S.msnCfg.altitude * d.pixelSize) / (focal * 10);
+}
+
+function updatePlannerGSD(){
+  const el = document.getElementById('plannerGsdBadge');
+  if(!el) return;
+  const gsd = calcPlannerGSD();
+  if(gsd === null){
+    el.innerHTML = `<span style="font-size:11px;color:var(--txt2);font-family:'Rajdhani',sans-serif;letter-spacing:.5px">GSD: N/A</span>`;
+    return;
+  }
+  let clr, lbl;
+  if(gsd < 2)       { clr='#4caf50'; lbl='Alta resolución'; }
+  else if(gsd <= 5) { clr='#FFD700'; lbl='Resolución estándar'; }
+  else              { clr='#E24B4A'; lbl='Baja resolución'; }
+  el.innerHTML =
+    `<span style="background:${clr}22;color:${clr};border:1px solid ${clr}66;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:700;font-family:'Rajdhani',sans-serif;letter-spacing:.5px">GSD ${gsd.toFixed(2)} cm/px</span>` +
+    `<span style="background:${clr}11;color:${clr};border:1px solid ${clr}44;border-radius:4px;padding:2px 6px;font-size:10px;font-family:'Rajdhani',sans-serif;margin-left:4px;letter-spacing:.5px">${lbl}</span>`;
+}
+
 function autoRegenMission(){
+  updatePlannerGSD();
   if(S.generatedWPs.length > 0) generateMission(true);
 }
 
