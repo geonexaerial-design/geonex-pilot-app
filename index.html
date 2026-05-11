@@ -2274,8 +2274,12 @@ const CFG_ITEMS = [
 
 function buildMissionConfig(){
   const el = document.getElementById('missionCfg');
+  const PRO_KEYS = ['straightLines','dtmMode','wpAction','invertPath'];
+  const isPro = (window._userPlan || 'free') === 'pro';
+
   el.innerHTML = CFG_ITEMS.map(item=>{
     const val = S.msnCfg[item.key];
+    const isLocked = PRO_KEYS.includes(item.key) && !isPro;
 
     if(item.type === 'toggle'){
       const checked = val ? ' checked' : '';
@@ -2289,8 +2293,15 @@ function buildMissionConfig(){
             </span>
            </div>`
         : '';
-      return `<div class="cfg-item cfg-item-full">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+      const control = isLocked
+        ? `<div onclick="showSec('planes')" title="Disponible en Plan Pro"
+              style="display:flex;align-items:center;gap:5px;cursor:pointer;flex-shrink:0">
+             <span style="font-size:15px">🔒</span>
+             <span style="font-size:10px;font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--txt2);letter-spacing:.5px">PRO</span>
+           </div>`
+        : `<label class="switch" style="flex-shrink:0"><input type="checkbox"${checked} onchange="S.msnCfg.${item.key}=this.checked;${extraChange}autoRegenMission()"/><span class="sw-slider"></span></label>`;
+      return `<div class="cfg-item cfg-item-full"${isLocked?' style="opacity:0.5;pointer-events:none"':''}>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"${isLocked?' style="pointer-events:auto"':''}>
           <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
             <div style="flex-shrink:0">${item.svg}</div>
             <div>
@@ -2298,22 +2309,30 @@ function buildMissionConfig(){
               ${item.sub?`<div style="font-size:11px;color:var(--txt2);margin-top:2px">${item.sub}</div>`:''}
             </div>
           </div>
-          <label class="switch" style="flex-shrink:0"><input type="checkbox"${checked} onchange="S.msnCfg.${item.key}=this.checked;${extraChange}autoRegenMission()"/><span class="sw-slider"></span></label>
+          ${control}
         </div>
-        ${dtmBadge}
+        ${isLocked ? '' : dtmBadge}
       </div>`;
     }
 
     let inputHtml;
     if(item.type==='select'){
-      inputHtml = `<select onchange="S.msnCfg.${item.key}=this.value;autoRegenMission()">${item.options.map(o=>`<option value="${o.v}"${o.v===val?'selected':''}>${o.l}</option>`).join('')}</select>`;
+      if(isLocked){
+        inputHtml = `<div onclick="showSec('planes')" title="Disponible en Plan Pro"
+          style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 0;pointer-events:auto">
+          <span style="font-size:14px">🔒</span>
+          <span style="font-size:11px;color:var(--txt2);font-family:'Rajdhani',sans-serif;font-weight:700">Disponible en Plan Pro</span>
+        </div>`;
+      } else {
+        inputHtml = `<select onchange="S.msnCfg.${item.key}=this.value;autoRegenMission()">${item.options.map(o=>`<option value="${o.v}"${o.v===val?'selected':''}>${o.l}</option>`).join('')}</select>`;
+      }
     } else {
       inputHtml = `<input type="number" value="${val}" min="${item.min}" max="${item.max}" step="${item.step}" onchange="S.msnCfg.${item.key}=+this.value;autoRegenMission()"/>`;
     }
     const badge = item.key === 'altitude'
       ? `<div id="plannerGsdBadge" style="margin-top:5px"></div>`
       : '';
-    return `<div class="cfg-item">
+    return `<div class="cfg-item"${isLocked?' style="opacity:0.5;pointer-events:none"':''}>
       <div class="cfg-svg">${item.svg}</div>
       <label>${item.label}</label>
       ${inputHtml}
@@ -3553,6 +3572,9 @@ function applyPlanRestrictions(plan){
   // Espacio Aéreo overlay
   const overlay = document.getElementById('espacioOverlay');
   if(overlay) overlay.style.display = isFree ? 'flex' : 'none';
+
+  // Mission config — re-render to apply/remove locks
+  buildMissionConfig();
 
   // ARIA floating button
   const ariaBtn = document.getElementById('ariaBtnFloat');
