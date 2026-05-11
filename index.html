@@ -202,6 +202,7 @@ a{color:var(--acc);text-decoration:none}
 .mode-btn.active-mode{background:var(--acc);color:#000;border-color:var(--acc);border-radius:0}
 .cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .cfg-item{background:var(--bg2);border-radius:var(--r8);padding:10px;border:1px solid var(--bdr)}
+.cfg-item-full{grid-column:1/-1}
 .cfg-item label{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;color:var(--acc);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px}
 .cfg-item .cfg-svg{text-align:center;margin-bottom:6px}
 .cfg-item input,.cfg-item select{background:var(--bg0);border:1px solid var(--bdr);color:var(--txt);padding:5px 8px;border-radius:4px;font-size:13px;width:100%}
@@ -1640,7 +1641,8 @@ const S = {
   msnCfg: {
     altitude:120, speed:8, gimbal:-90,
     passDist:50, photoSec:2, overlap:70, overlapLat:70,
-    orient:'ew', endAction:'rtl'
+    orient:'ew', endAction:'rtl',
+    straightLines:false, dtmMode:false, wpAction:'none', invertPath:false
   },
   flights: [],
   zones: [],
@@ -2260,12 +2262,48 @@ const CFG_ITEMS = [
    svg:`<svg viewBox="0 0 40 40" width="36" height="36"><path d="M20 6 L20 34" stroke="#4a9eff" stroke-width="2"/><path d="M6 20 L34 20" stroke="#4a9eff" stroke-width="2"/><text x="20" y="9" text-anchor="middle" font-size="7" fill="#fff">N</text><text x="20" y="37" text-anchor="middle" font-size="7" fill="#fff">S</text><text x="37" y="23" text-anchor="middle" font-size="7" fill="#fff">E</text><text x="3" y="23" text-anchor="middle" font-size="7" fill="#fff">O</text></svg>`},
   {key:'endAction', label:'Acción al terminar', type:'select', options:[{v:'rtl',l:'↩ RTL'},{v:'hover',l:'⏸ Hover'},{v:'land',l:'⬇ Aterrizar'}],
    svg:`<svg viewBox="0 0 40 40" width="36" height="36"><path d="M28 8 C28 8 34 20 20 20 C6 20 12 32 12 32" stroke="#4a9eff" stroke-width="2" fill="none"/><path d="M8 28 L12 32 L16 28" stroke="#4a9eff" stroke-width="2" fill="none"/></svg>`},
+  {key:'straightLines', label:'Enderezar rutas de vuelo', type:'toggle', sub:'Conexión directa entre pasadas sin curvas',
+   svg:`<svg viewBox="0 0 40 40" width="36" height="36"><line x1="8" y1="32" x2="32" y2="8" stroke="#4a9eff" stroke-width="2"/><circle cx="8" cy="32" r="3" fill="#4a9eff"/><circle cx="32" cy="8" r="3" fill="#4a9eff"/><circle cx="20" cy="20" r="2.5" fill="#fff" stroke="#4a9eff" stroke-width="1.5"/></svg>`},
+  {key:'dtmMode', label:'Altitud dinámica (DTM)', type:'toggle', sub:'Se ajusta al terreno en DJI Fly',
+   svg:`<svg viewBox="0 0 40 40" width="36" height="36"><path d="M4 30 L13 18 L21 24 L30 11 L36 18" stroke="#4a9eff" stroke-width="2" fill="none"/><path d="M4 30 L13 18 L21 24 L30 11 L36 18 L36 36 L4 36Z" fill="#4a9eff" opacity=".2"/><path d="M4 22 L13 10 L21 16 L30 3 L36 10" stroke="#FFD700" stroke-width="1.5" fill="none" stroke-dasharray="3,2"/></svg>`},
+  {key:'wpAction', label:'Acción en waypoints', type:'select', options:[{v:'none',l:'Sin acción'},{v:'photo',l:'📷 Tomar foto'},{v:'videoStart',l:'▶ Iniciar video'},{v:'videoStop',l:'⏹ Detener video'},{v:'hover2',l:'⏸ Hover 2s'},{v:'hover5',l:'⏸ Hover 5s'}],
+   svg:`<svg viewBox="0 0 40 40" width="36" height="36"><circle cx="20" cy="20" r="13" fill="none" stroke="#4a9eff" stroke-width="2"/><circle cx="20" cy="20" r="4" fill="#4a9eff"/><line x1="20" y1="7" x2="20" y2="13" stroke="#4a9eff" stroke-width="1.5"/><line x1="20" y1="27" x2="20" y2="33" stroke="#4a9eff" stroke-width="1.5"/><line x1="7" y1="20" x2="13" y2="20" stroke="#4a9eff" stroke-width="1.5"/><line x1="27" y1="20" x2="33" y2="20" stroke="#4a9eff" stroke-width="1.5"/></svg>`},
+  {key:'invertPath', label:'Invertir trayectoria', type:'toggle', sub:'El último waypoint se vuelve el primero',
+   svg:`<svg viewBox="0 0 40 40" width="36" height="36"><line x1="8" y1="13" x2="32" y2="13" stroke="#4a9eff" stroke-width="2"/><path d="M26 9 L32 13 L26 17" stroke="#4a9eff" stroke-width="2" fill="none"/><line x1="32" y1="27" x2="8" y2="27" stroke="#ff9800" stroke-width="2"/><path d="M14 23 L8 27 L14 31" stroke="#ff9800" stroke-width="2" fill="none"/></svg>`},
 ];
 
 function buildMissionConfig(){
   const el = document.getElementById('missionCfg');
   el.innerHTML = CFG_ITEMS.map(item=>{
     const val = S.msnCfg[item.key];
+
+    if(item.type === 'toggle'){
+      const checked = val ? ' checked' : '';
+      const extraChange = item.key === 'dtmMode'
+        ? `document.getElementById('dtmBadge').style.display=this.checked?'block':'none';`
+        : '';
+      const dtmBadge = item.key === 'dtmMode'
+        ? `<div id="dtmBadge" style="margin-top:6px;display:${val?'block':'none'}">
+            <span style="background:rgba(255,215,0,.12);color:#FFD700;border:1px solid rgba(255,215,0,.4);border-radius:4px;padding:3px 8px;font-size:11px;font-weight:700;font-family:'Rajdhani',sans-serif;letter-spacing:.5px;display:inline-block">
+              DTM activo — altitud se ajustará al terreno en DJI Fly
+            </span>
+           </div>`
+        : '';
+      return `<div class="cfg-item cfg-item-full">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+            <div style="flex-shrink:0">${item.svg}</div>
+            <div>
+              <div style="font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;color:var(--acc);text-transform:uppercase;letter-spacing:1px">${item.label}</div>
+              ${item.sub?`<div style="font-size:11px;color:var(--txt2);margin-top:2px">${item.sub}</div>`:''}
+            </div>
+          </div>
+          <label class="switch" style="flex-shrink:0"><input type="checkbox"${checked} onchange="S.msnCfg.${item.key}=this.checked;${extraChange}autoRegenMission()"/><span class="sw-slider"></span></label>
+        </div>
+        ${dtmBadge}
+      </div>`;
+    }
+
     let inputHtml;
     if(item.type==='select'){
       inputHtml = `<select onchange="S.msnCfg.${item.key}=this.value;autoRegenMission()">${item.options.map(o=>`<option value="${o.v}"${o.v===val?'selected':''}>${o.l}</option>`).join('')}</select>`;
@@ -2329,6 +2367,9 @@ function generateMission(silent){
   const wps = cleanWaypoints(rawWps);
   const removed = rawWps.length - wps.length;
   if(!wps.length){ if(!silent) toast('El área es demasiado pequeña para la distancia de pasada','warn'); return; }
+
+  // Invert trajectory if requested
+  if(S.msnCfg.invertPath) wps.reverse();
 
   // Remove old generated markers AND manual waypoint markers to avoid overlap
   S.generatedWPs.forEach(w=>{ if(w._mk) maps.plan.removeLayer(w._mk); });
@@ -2553,15 +2594,28 @@ async function downloadKMZ(){
   }
   const d = DRONES[S.drone];
   const c = S.msnCfg;
+  const altMode = c.dtmMode ? 'clampToGround' : 'relativeToGround';
+  const wpActionMap = {
+    none:'',
+    photo:'<Data name="action"><value>takePhoto</value></Data>',
+    videoStart:'<Data name="action"><value>startRecord</value></Data>',
+    videoStop:'<Data name="action"><value>stopRecord</value></Data>',
+    hover2:'<Data name="action"><value>hover</value></Data><Data name="hoverTime"><value>2</value></Data>',
+    hover5:'<Data name="action"><value>hover</value></Data><Data name="hoverTime"><value>5</value></Data>',
+  };
+  const actionData   = wpActionMap[c.wpAction||'none'] || '';
+  const turnData     = c.straightLines ? '<Data name="turnMode"><value>toPoint</value></Data>' : '';
+
   let placemarks = S.generatedWPs.map((wp,i)=>`
     <Placemark>
       <name>WP${i+1}</name>
-      <Point><altitudeMode>relativeToGround</altitudeMode>
+      <Point><altitudeMode>${altMode}</altitudeMode>
         <coordinates>${wp.lng},${wp.lat},${c.altitude}</coordinates>
       </Point>
       <ExtendedData>
         <Data name="speed"><value>${c.speed}</value></Data>
         <Data name="gimbal"><value>${c.gimbal}</value></Data>
+        ${actionData}${turnData}
       </ExtendedData>
     </Placemark>`).join('');
 
@@ -2575,7 +2629,7 @@ async function downloadKMZ(){
   <Style id="routeStyle"><LineStyle><color>ff0000ff</color><width>2</width></LineStyle></Style>
   <Placemark>
     <name>Ruta de vuelo</name><styleUrl>#routeStyle</styleUrl>
-    <LineString><altitudeMode>relativeToGround</altitudeMode>
+    <LineString><altitudeMode>${altMode}</altitudeMode>
       <coordinates>${routeCoords}</coordinates>
     </LineString>
   </Placemark>
